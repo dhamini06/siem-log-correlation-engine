@@ -146,13 +146,19 @@
   }
 
   /* ------------------------------------------- live SIEM reachability */
+  /* Asks this same-origin server, which relays Elasticsearch's cluster health.
+     A direct browser request to http://localhost:9200 cannot work: it is a
+     cross-origin request and Elasticsearch sends no Access-Control-Allow-Origin
+     header, so the browser blocks the response and the old code reported
+     "not reachable" against a perfectly healthy cluster. The relay is a single
+     request per page load, with no retries. */
   function initStackStatus() {
     var host = document.querySelectorAll("[data-es-status]");
     if (!host.length || !window.fetch) return;
-    var url = host[0].getAttribute("data-es-status") || "http://localhost:9200";
-    fetch(url + "/_cluster/health")
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+    fetch("/api/es-status")
+      .then(function (r) { return r.json(); })
       .then(function (body) {
+        if (!body || body.ok !== true) return Promise.reject(new Error("unreachable"));
         Array.prototype.forEach.call(host, function (el) {
           el.textContent = "Elasticsearch " + body.status;
           el.classList.remove("chip-light");

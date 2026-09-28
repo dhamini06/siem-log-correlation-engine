@@ -369,6 +369,104 @@ def test_wrong_answers_do_not_complete(key):
     assert result["summary"]["required_correct"] == 0
 
 
+# ---------------------------------------------------------------------------
+# Scenario 5, the capstone, must actually be completable.
+#
+# scenario-5/q5 is required, and its single part carries an empty "accept" list
+# and is graded purely by its "patterns" list. Reading only "accept" makes that
+# part look permanently unsatisfiable, and a hand-written probe once concluded
+# the whole scenario could never be completed. It can: match_part() tries
+# "patterns" before "accept". These tests pin the behaviour down, and
+# test_no_required_question_is_permanently_unsatisfiable below would catch the
+# real version of that bug if it ever appeared.
+# ---------------------------------------------------------------------------
+
+
+def test_scenario_five_completes_when_every_required_answer_is_correct(key):
+    result = G.grade("scenario-5", CORRECT_S5, key)
+    assert result["verdict"] == "complete"
+    assert result["completed"] is True
+    assert result["summary"]["required_total"] == 8
+    assert result["summary"]["required_correct"] == 8
+    assert result["questions"]["q5"]["status"] == "correct"
+
+
+def test_scenario_five_still_requires_all_eight_graded_questions(key):
+    questions = key["scenarios"]["scenario-5"]["questions"]
+    required = sorted((q for q, v in questions.items() if v.get("required")),
+                      key=lambda x: int(x[1:]))
+    assert required == ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"]
+
+    empty = G.grade("scenario-5", {}, key)
+    assert empty["summary"]["required_total"] == 8
+    # The two written answers stay self-reviewed and are never counted.
+    assert empty["questions"]["q9"]["status"] == "self_review"
+    assert empty["questions"]["q10"]["status"] == "self_review"
+
+
+@pytest.mark.parametrize("answer", [
+    "They are separate incidents",
+    "separate",
+    "distinct",
+    "different source IPs, so not the same incident",
+    "Two unrelated incidents running in parallel",
+])
+def test_scenario_five_q5_accepts_the_intended_answer(key, answer):
+    assert G.grade("scenario-5", {"q5": answer}, key)["questions"]["q5"]["status"] == "correct"
+
+
+@pytest.mark.parametrize("answer", [
+    "yes, it is one continuous incident",
+    "banana",
+    "the answer is 42",
+    "purple monkey dishwasher",
+    "",
+])
+def test_scenario_five_q5_rejects_an_obviously_wrong_answer(key, answer):
+    result = G.grade("scenario-5", {"q5": answer}, key)
+    assert result["questions"]["q5"]["status"] == "incorrect"
+    assert result["completed"] is False
+
+
+def test_scenario_five_wrong_answers_do_not_complete(key):
+    result = G.grade("scenario-5", WRONG_S5, key)
+    assert result["completed"] is False
+
+
+def test_scenario_five_stays_incomplete_while_q5_is_left_blank(key):
+    """q5 is graded by patterns rather than accept tokens, so an empty box fails.
+
+    A build that filled a "perfect" submission from the accept lists alone would
+    send nothing here and see 7 of 8 - the failure this test is written against.
+    """
+    answers = dict(CORRECT_S5)
+    answers["q5"] = ""
+    result = G.grade("scenario-5", answers, key)
+    assert result["questions"]["q5"]["status"] == "incorrect"
+    assert result["summary"]["required_correct"] == 7
+    assert result["summary"]["required_total"] == 8
+    assert result["completed"] is False
+
+
+def test_no_required_question_is_permanently_unsatisfiable(key):
+    """Every required question needs some route to a "correct" verdict.
+
+    A part with an empty accept list is fine while it still carries patterns,
+    because match_part() tries patterns first. A part with neither can never
+    pass, which would lock that scenario's completion gate for good.
+    """
+    dead = []
+    for scenario, spec in key["scenarios"].items():
+        for qid, question in spec["questions"].items():
+            if not question.get("required"):
+                continue
+            for part in question.get("parts") or []:
+                if not (part.get("accept") or []) and not (part.get("patterns") or []):
+                    dead.append(f"{scenario}/{qid} part {part.get('label')!r}")
+    assert not dead, ("required questions that can never be graded correct: "
+                      + "; ".join(dead))
+
+
 def test_partially_correct_question_is_partial(key):
     result = G.grade("scenario-1", {"q1": "the source was 203.0.113.45"}, key)
     assert result["questions"]["q1"]["status"] == "partial"
@@ -564,6 +662,112 @@ def test_pages_do_not_contain_answer_key_values():
             assert secret not in html, f"{name} exposes {secret}"
 
 
+# ------------------------------------------- leak scan: every student page
+# Field names, process sub-fields, event types and rule names are the vocabulary
+# the lab exists to teach, so they are exempt. Everything else a student must
+# *derive* is an answer, and may only appear on the scenario page whose
+# question it answers.
+_TEACHABLE = {
+    # normalized-events / security-alerts fields
+    "@timestamp", "source_type", "event_type", "host", "user", "src_ip", "dst_ip",
+    "process", "port", "protocol", "severity", "message", "raw_event",
+    "parser_version", "ingest_timestamp", "timestamp", "rule_name", "reasoning",
+    "first_seen", "last_seen", "evidence_event_ids", "evidence_count",
+    "dedup_key", "dedup_window_minutes", "false_positive_feedback",
+    "process.name", "process.command_line", "command_line", "commandline",
+    "command line", "raw event", "process.path", "process.pid",
+    "process.parent_name", "process.parent_pid",
+    # event_type enumeration
+    "logon_failure", "logon_success", "process_create", "privilege_escalation",
+    "network_connection", "account_unlock",
+    # correlation rule names
+    "brute_force", "successful_brute_force", "suspicious_process_post_login",
+}
+
+# The lab's four hosts are shared context: each is named in its own scenario brief
+# and several scenarios touch the same machine, so a host appearing on a sibling
+# scenario page is not an answer leak.
+_SHARED_HOSTS = {"web-01", "app-01", "app-02", "fw-01"}
+
+# Account and host words that are also ordinary English / sysadmin vocabulary.
+# "root shell" or "administrator" in unrelated prose does not hand a student the
+# username an SSH brute force targeted; the discriminating context does.
+_GENERIC_TERMS = {"root", "admin", "administrator", "user", "host", "unknown"}
+
+
+def _appears(text, token):
+    """Word-boundary containment, so 'admin' does not match 'administrator'."""
+    pattern = r"(?<![0-9a-z])" + re.escape(token) + r"(?![0-9a-z])"
+    return re.search(pattern, text) is not None
+
+
+def _skip_token(token):
+    return (len(token) < 4
+            or token in _TEACHABLE
+            or token in _SHARED_HOSTS
+            or token in _GENERIC_TERMS)
+
+# Every student-facing HTML page, not just the scenario pages.
+STUDENT_PAGES = {
+    "index.html": os.path.join(TRAINING, "index.html"),
+    "instructions.html": os.path.join(TRAINING, "instructions.html"),
+}
+STUDENT_PAGES.update({f"scenarios/{name}": os.path.join(SCENARIOS_DIR, name)
+                      for name in SCENARIO_FILES.values()})
+
+
+def test_every_student_page_is_covered_by_the_leak_scan():
+    """The scan must actually read all student-facing pages."""
+    for label, path in STUDENT_PAGES.items():
+        assert os.path.isfile(path), f"missing student page: {label}"
+    assert len(STUDENT_PAGES) == 2 + len(SCENARIO_FILES)
+
+
+def test_no_student_page_exposes_a_value_students_must_derive(key):
+    """An answer may appear only on the scenario page whose question it answers.
+
+    Regression: the "How to Investigate" page used to print a real attacker IP, a
+    destination IP, a username, a host and an exact event count in its example
+    queries and prose, which handed students answers to Scenarios 1, 2 and 5.
+    """
+    page_text = {label: read(path).lower() for label, path in STUDENT_PAGES.items()}
+    own_page = {scenario: read(os.path.join(SCENARIOS_DIR, name)).lower()
+                for scenario, name in SCENARIO_FILES.items()}
+
+    offenders = []
+    for label, text in page_text.items():
+        for scenario, spec in key["scenarios"].items():
+            for qid, question in spec["questions"].items():
+                for part in question.get("parts") or []:
+                    for token in _answer_tokens(question):
+                        if _skip_token(token):
+                            continue
+                        if not _appears(text, token):
+                            continue
+                        if _appears(own_page[scenario], token):
+                            continue
+                        offenders.append(
+                            f"{label} reveals {token!r} (answer to {scenario}/{qid}, "
+                            f"part {part.get('label')!r})")
+    assert not offenders, "student-facing answer leaks:\n" + "\n".join(offenders)
+
+
+def test_instructions_page_does_not_name_the_lab_addresses():
+    """Targeted guard for the values the query examples used to carry."""
+    text = read(os.path.join(TRAINING, "instructions.html"))
+    for secret in ("203.0.113.45", "203.0.113.66", "198.51.100.25",
+                   "198.51.100.77", "10.0.0.10", "svc_backup", "alice",
+                   "web-01", "app-01", "app-02", "fw-01"):
+        assert secret not in text, f"instructions.html exposes {secret!r}"
+
+
+def test_instructions_page_does_not_give_away_the_scenario_one_window():
+    """Scenario 1 Q3 asks for the failure count and the exact time window."""
+    text = read(os.path.join(TRAINING, "instructions.html"))
+    assert "07:25:55" not in text and "07:28:07" not in text
+    assert "10 failed logons" not in text
+
+
 # ------------------------------------------------------------- answer data
 
 CORRECT_S1 = {
@@ -584,4 +788,38 @@ WRONG_S1 = {
     "q5": "Yes, it succeeded immediately",
     "q6": "there are no firewall records",
     "q7": "the guest account failed 9 times",
+}
+
+# Scenario 5, the capstone. q5 is answered in prose like a written finding, so it
+# is phrased the way a student would actually phrase it rather than as a token.
+CORRECT_S5 = {
+    "q1": "4 alerts: 3 high, 1 critical, and 2 of them from suspicious_process_post_login",
+    "q2": ("1) brute_force 203.0.113.45  2) successful_brute_force 203.0.113.66  "
+           "3) suspicious_process_post_login 198.51.100.25  "
+           "4) suspicious_process_post_login 198.51.100.77"),
+    "q3": "4 distinct source IPs: 203.0.113.45, 203.0.113.66, 198.51.100.25, 198.51.100.77",
+    "q4": "the attack ran for 146 seconds end to end",
+    "q5": ("They are separate incidents: different source IPs, rules and accounts, "
+           "and they ran in parallel"),
+    "q6": "successful_brute_force, source 203.0.113.66, account alice - the attacker got in",
+    "q7": "fw-01 holds the firewall records, blocked 10.0.0.10 port 22, 3 connections",
+    "q8": ("svc_backup had 4 failures, below min_failures; app-02 ran powershell "
+           "30 minutes later, outside the window"),
+    "q9": "Routine logons and sudo by the service accounts, identical every day",
+    "q10": ("Confirmed compromise of one account and an interactive shell elsewhere. "
+            "Disable the accounts, rotate keys, block the source ranges, review all "
+            "four hosts, and add rate limiting."),
+}
+
+WRONG_S5 = {
+    "q1": "9 alerts, all of them low severity",
+    "q2": "one single alert, a port scan",
+    "q3": "just one source IP",
+    "q4": "the whole thing took about an hour",
+    "q5": "yes, it is one continuous incident",
+    "q6": "brute_force, from an unknown address",
+    "q7": "there are no firewall records at all",
+    "q8": "both were blocked by the firewall",
+    "q9": "I have no idea, maybe it is an attack",
+    "q10": "nothing to report",
 }

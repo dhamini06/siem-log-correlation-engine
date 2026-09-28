@@ -324,6 +324,11 @@
             box.hidden = false;
             if (!row.querySelector(".answer-solution")) row.appendChild(box);
             button.textContent = "Hide solution";
+            /* Re-enable: the button is a real <button>, so leaving it disabled
+               suppressed its click event and the "Hide solution" label became a
+               dead control. The solution is cached in the row, so the toggle
+               above now handles show/hide without another request. */
+            button.disabled = false;
 
             var state = store();
             state.results = state.results || {};

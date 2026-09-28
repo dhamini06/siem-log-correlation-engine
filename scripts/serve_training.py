@@ -34,6 +34,8 @@ import os
 import socket
 import socketserver
 import sys
+import urllib.error
+import urllib.request
 import webbrowser
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -46,6 +48,14 @@ DEFAULT_PORT = 8080
 
 DIRECTORY_INDEX = "index.html"
 API_PREFIX = "/api/"
+
+# Where the training platform looks for Elasticsearch. Kept in step with the
+# SIEM engine's ES_HOST / ES_PORT environment variables so one setting moves
+# both. This is the address the *server* dials, never a Docker-internal name.
+ES_HOST = os.environ.get("ES_HOST", "localhost")
+ES_PORT = os.environ.get("ES_PORT", "9200")
+ES_HEALTH_URL = f"http://{ES_HOST}:{ES_PORT}/_cluster/health"
+ES_HEALTH_TIMEOUT = 2.0
 
 # Magic-byte signatures. Brand assets are sometimes supplied with an extension
 # that does not match the real format (the BlueCloud logo is a JPEG named .png),
@@ -95,6 +105,18 @@ class LabRequestHandler(http.server.SimpleHTTPRequestHandler):
         if b"<svg" in head:
             return "image/svg+xml"
         return super().guess_type(path)
+
+    # ------------------------------------------------------------ lab API
+    def do_GET(self):
+        """Serve /api/* here, everything else as a static file."""
+        if self.path.startswith(API_PREFIX):
+            endpoint = self.path[len(API_PREFIX):].split("?", 1)[0].strip("/")
+            if endpoint == "es-status":
+                self._send_json(es_health())
+            else:
+                self._send_json({"error": f"unknown endpoint {endpoint!r}"}, 404)
+            return
+        super().do_GET()
 
     # ----------------------------------------------------------- answer API
     def _send_json(self, payload: dict, status: int = 200) -> None:
@@ -166,6 +188,35 @@ class LabRequestHandler(http.server.SimpleHTTPRequestHandler):
 class LabServer(socketserver.TCPServer):
     allow_reuse_address = True
     daemon_threads = True
+
+
+def es_health(url: str = None, timeout: float = None) -> dict:
+    """Query Elasticsearch's cluster health from the server side.
+
+    The browser cannot make this call itself. The lab platform is served on
+    port 8080 and Elasticsearch on 9200, which are different origins, and
+    Elasticsearch returns no ``Access-Control-Allow-Origin`` header. A direct
+    ``fetch()`` is therefore blocked by CORS even when the cluster is perfectly
+    healthy, which is what made the homepage report "not reachable" against a
+    green cluster. Proxying this single read through this same-origin server
+    keeps the status honest without loosening the Elasticsearch configuration.
+
+    One request, no retries: it runs once per page load with a short timeout, so
+    a dead cluster cannot stall the page.
+    """
+    url = url or ES_HEALTH_URL
+    timeout = ES_HEALTH_TIMEOUT if timeout is None else timeout
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": True,
+        "status": body.get("status"),
+        "cluster_name": body.get("cluster_name"),
+        "number_of_nodes": body.get("number_of_nodes"),
+    }
 
 
 def _port_is_free(host: str, port: int) -> bool:

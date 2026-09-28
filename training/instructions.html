@@ -68,11 +68,22 @@
       </table>
     </div>
 
+    <div class="callout callout-info" style="margin-top:1.2rem">
+      <span class="callout-title">Two different severities</span>
+      <p class="mb0">
+        Every <em>event</em> carries a severity assigned by its parser, and every <em>alert</em>
+        carries a severity assigned by the rule that raised it. They are not the same field. A
+        <code>high</code> event &mdash; a blocked firewall packet, for example &mdash; does
+        <strong>not</strong> mean an alert was generated. An alert only exists where a
+        correlation rule actually fired.
+      </p>
+    </div>
+
     <h3 style="margin-top:1.6rem">The three correlation rules</h3>
     <div class="grid grid-3">
       <div class="card card-accent">
         <h3>brute_force</h3>
-        <p class="mb0"><strong>Trigger:</strong> &ge;5 <code>logon_failure</code> from one <code>src_ip</code> within 5 minutes.<br><strong>Severity:</strong> high.<br><strong>Suppressed</strong> if a success from that IP follows, because rule 2 takes over.</p>
+        <p class="mb0"><strong>Trigger:</strong> &ge;5 <code>logon_failure</code> from one <code>src_ip</code> within 5 minutes.<br><strong>Severity:</strong> high.<br><strong>Suppressed</strong> if a success from that same IP turns up inside the detection window &mdash; the burst window plus the rule's own 5-minute window &mdash; because rule 2 reports that case instead.</p>
       </div>
       <div class="card card-accent-orange">
         <h3>successful_brute_force</h3>
@@ -87,11 +98,12 @@
     <div class="callout callout-info" style="margin-top:1.2rem">
       <span class="callout-title">Triage is a judgement, not a filter</span>
       <p class="mb0">
-        Not everything suspicious alerts, and not everything benign is quiet. One account in this
-        lab fails four logons and then logs in successfully &mdash; below the threshold of five, so
-        no alert. Another launches PowerShell 30 minutes after login &mdash; outside the 2-minute
-        window, so no alert. Knowing <em>why</em> something did not alert is as important as
-        knowing why it did.
+        Not everything suspicious alerts, and not everything benign is quiet. This lab contains
+        an account that fails a few logons and then logs in successfully &mdash; fewer failures
+        than the rule's threshold, so no alert. It also contains a script that runs well after
+        someone logs in &mdash; outside the rule's correlation window, so no alert. Knowing
+        <em>why</em> something did not alert is as important as knowing why it did, and you will
+        be asked to explain both.
       </p>
     </div>
   </div>
@@ -136,9 +148,13 @@
     </div>
     <ol class="steps">
       <li><strong>Pick the alert your scenario describes</strong>Use severity and the reasoning text to match the brief to a real alert.</li>
-      <li><strong>Read the alert, not just the title</strong><code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>, <code>host</code>, <code>first_seen</code>, <code>last_seen</code>, and the <code>reasoning</code> sentence that states the rule and the numbers.</li>
+      <li><strong>Read the alert, not just the title</strong><code>rule_name</code> tells you which
+        correlation rule fired. <code>severity</code>, <code>src_ip</code>, <code>user</code>,
+        <code>host</code>, <code>first_seen</code> and <code>last_seen</code> give you the scope
+        and the window. The <code>reasoning</code> sentence explains what the rule observed and
+        the numbers behind it &mdash; it does not repeat the rule name, so read both.</li>
       <li><strong>Follow the evidence</strong><code>evidence_event_ids</code> lists the exact events behind the alert. In Discover, search by <code>_id</code> to load them, or filter on <code>src_ip</code> / <code>host</code> and the time window.</li>
-      <li><strong>Read the raw lines</strong><code>raw_event</code> holds the untouched sshd, Windows or firewall line. It is the ground truth for what the source system recorded.</li>
+      <li><strong>Read the raw lines</strong><code>raw_event</code> holds the untouched Linux, Windows or firewall log line. It is the ground truth for what the source system recorded.</li>
       <li><strong>Widen the search for context</strong>Look around the window. What else touched that host or user? Is there a success, a process, or a firewall block that changes the meaning?</li>
       <li><strong>Answer each question with a record</strong>Type the value and, where it matters, the evidence that proves it.</li>
       <li><strong>Write the finding</strong>State the security conclusion the evidence supports, and the severity you would assign as the responding analyst.</li>
@@ -161,14 +177,18 @@
         </tbody>
       </table>
     </div>
+    <p style="margin-top:0.8rem">This is an investigation framework, not a question count. Scenarios
+    1 to 4 ask you to cover these nine points. Scenario 5 adds a tenth question on top: the handover
+    summary you would give to the next analyst.</p>
 
     <div class="callout callout-crit" style="margin-top:1.4rem">
       <span class="callout-title">Do not guess</span>
       <p class="mb0">
         If a question asks for a count, a time or an address, find the record. "Probably about
-        five" is not an answer; <em>"10 failed logons, 07:25:55Z to 07:28:07Z"</em> is. A
-        security finding that is not backed by evidence is worthless in a real incident, and
-        that is exactly what this lab is teaching.
+        five" is not an answer; <em>"&lt;COUNT&gt; logon failures from &lt;SOURCE_IP&gt; between
+        &lt;HH:MM:SS&gt;Z and &lt;HH:MM:SS&gt;Z"</em> is, once you have filled it in from the
+        evidence. A security finding that is not backed by evidence is worthless in a real
+        incident, and that is exactly what this lab is teaching.
       </p>
     </div>
   </div>
@@ -180,17 +200,20 @@
     <div class="section-head">
       <span class="kicker">Reference</span>
       <h2>Useful Discover queries</h2>
-      <p>Type these in the Kibana Discover search bar with the <code>normalized-events-*</code> data view selected.</p>
+      <p>Type these in the Kibana Discover search bar with the <code>normalized-events-*</code> data
+    view selected. Replace each <code>&lt;PLACEHOLDER&gt;</code> with the value you took from the
+    alert you are investigating &mdash; the examples deliberately use placeholders so you read the
+    value off the alert instead of off this page.</p>
     </div>
 
     <h4>All events from one source IP</h4>
-    <pre><code>src_ip: "203.0.113.45"</code></pre>
+    <pre><code>src_ip: "&lt;SOURCE_IP&gt;"</code></pre>
 
-    <h4>All failed logons on one host, newest first</h4>
-    <pre><code>host: "web-01" AND event_type: "logon_failure"</code></pre>
+    <h4>All failed logons on one host</h4>
+    <pre><code>host: "&lt;HOST&gt;" AND event_type: "logon_failure"</code></pre>
 
     <h4>Logons for one account</h4>
-    <pre><code>user: "alice" AND event_type: ("logon_success" OR "logon_failure")</code></pre>
+    <pre><code>user: "&lt;ACCOUNT&gt;" AND event_type: ("logon_success" OR "logon_failure")</code></pre>
 
     <h4>Process creation and privilege escalation</h4>
     <pre><code>event_type: ("process_create" OR "privilege_escalation")</code></pre>
@@ -199,10 +222,14 @@
     <pre><code>_id: ("PASTE_EVIDENCE_ID_HERE")</code></pre>
 
     <h4>Firewall blocks toward a host</h4>
-    <pre><code>event_type: "network_connection" AND dst_ip: "10.0.0.10"</code></pre>
+    <pre><code>event_type: "network_connection" AND dst_ip: "&lt;DESTINATION_IP&gt;"</code></pre>
 
-    <h4>High and critical alerts only</h4>
+    <h4>High and critical events</h4>
     <pre><code>severity: ("high" OR "critical")</code></pre>
+    <p style="margin-top:-0.4rem">This one filters <em>events</em> in the
+    <code>normalized-events-*</code> data view. To filter <em>alerts</em> by severity instead,
+    switch the data view at the top left of Discover to <code>security-alerts-*</code> and the
+    same query works there.</p>
 
     <div class="callout callout-info" style="margin-top:1.3rem">
       <span class="callout-title">Tip: the time picker is part of the question</span>
@@ -216,7 +243,7 @@
 <section class="section">
   <div class="wrap narrow">
     <div class="section-head">
-      <span class="kicker">Step 4</span>
+      <span class="kicker">Step 8</span>
       <h2>Working a scenario, end to end</h2>
       <p>Your answers stay in this browser, so you can leave a scenario half-finished and come
       back to it. The lab checks what it can check for you.</p>
@@ -227,14 +254,17 @@
       <li><strong>Investigate in Kibana</strong>Find the alert on the SOC Triage Board, then pull
       its evidence with <code>evidence_event_ids</code>.</li>
       <li><strong>Fill in every answer box</strong>Type what you found, with the evidence that proves it.</li>
-      <li><strong>Choose Check answers</strong>The lab grades every fact it can verify, marks each
-      question <em>Correct</em>, <em>Partially correct</em> or <em>Needs work</em>, and for anything
-      unmatched shows which part of the question missed and a hint. It never shows you the answer.</li>
+      <li><strong>Choose Check answers</strong>The lab grades every fact it can verify and marks
+      each question <em>Correct</em>, <em>Partially correct</em> or <em>Needs work</em>. For anything
+      unmatched it shows which part of the question missed, plus a hint &mdash; never the answer.
+      Interpretation and finding questions are marked <em>Your call</em>, because the lab cannot
+      grade your judgement.</li>
       <li><strong>Fix and retry</strong>Correct what the hints point at and check again, as often as you like.</li>
       <li><strong>Review your written answers</strong>The interpretation and finding questions are
       graded by you, not the lab. Tick the box beside each one once you are happy with it.</li>
       <li><strong>Mark the scenario complete</strong>This unlocks only once every checkable answer
-      is correct.</li>
+      is correct. A passing check marks the scenario complete for you, so use this button to
+      confirm it &mdash; or <em>Undo</em> if you want to clear it and re-check.</li>
     </ol>
 
     <div class="callout callout-info">

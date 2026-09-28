@@ -225,6 +225,18 @@ img.brand-mark {
 .chip-warn { background: #fef3e2; color: #a35a06; border-color: #f7d9ac; }
 .chip-crit { background: #fdeaea; color: #a51b1b; border-color: #f6c6c6; }
 
+/* Narrow exception to the nowrap above, and only for the stack health chip. When
+   Elasticsearch is down the chip has to carry a whole instruction - "Elasticsearch
+   not reachable - start it with: docker compose up -d" - which is far wider than a
+   phone viewport, and a nowrap flex item cannot shrink, so it pushed the page into
+   horizontal scrolling. A short healthy value such as "Elasticsearch green" is
+   unaffected: it never needed to wrap. Every other chip keeps nowrap. */
+[data-es-status] {
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
+}
+
 /* ------------------------------------------------------------------ card */
 .section { padding: 2.75rem 0; }
 .section-alt { background: #eaf1fb; border-top: 1px solid #d6e3f6; border-bottom: 1px solid #d6e3f6; }
@@ -302,15 +314,35 @@ img.brand-mark {
 .section-dark .callout .callout-title { color: #fff; }
 
 /* ------------------------------------------------------------- scenarios */
-.scenario-card { display: flex; flex-direction: column; gap: 0.55rem; }
+/* Card action areas must survive two independent constraints:
+     vertical - cards in a grid row are equal height, so the action area has to
+                rest on the card's bottom edge regardless of description length;
+     horizontal - the rule chip and the "Start Investigation" button cannot share
+                one row. At 4 columns the card content is ~240px, while the worst
+                chip ("Rule: suspicious_process_post_login", which is nowrap)
+                plus a btn-sm button needs ~418px. On one row the chip therefore
+                either refuses to shrink or, once shrunk, overflows its own box
+                and gets painted over by the button.
+   So .foot is a column: the chip takes a full-width line of its own and may
+   wrap inside max-width:100%, and the primary action sits beneath it, aligned
+   to the right edge as before. .foot is still the last flex child, so
+   margin-top:auto keeps it pinned to the card bottom. No fixed heights are
+   used, so a longer description or rule name simply makes the card taller. */
+.scenario-card { display: flex; flex-direction: column; gap: 0.55rem; height: 100%; }
 .scenario-card .num {
   font-family: var(--mono); font-size: 0.78rem; font-weight: 700;
   color: var(--bc-orange-600); letter-spacing: 0.1em; text-transform: uppercase;
 }
 .scenario-card h3 { margin: 0; }
-.scenario-card .desc { color: var(--text-muted); font-size: 0.93rem; flex: 1 1 auto; }
-.scenario-card .foot { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.35rem; }
-.scenario-card .foot .btn { flex: 0 0 auto; }
+.scenario-card .desc { color: var(--text-muted); font-size: 0.93rem; }
+.scenario-card .foot {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 0.5rem; margin-top: auto; padding-top: 0.35rem;
+}
+.scenario-card .foot .chip {
+  align-self: flex-start; max-width: 100%; white-space: normal;
+}
+.scenario-card .foot .btn { align-self: flex-end; flex: 0 0 auto; }
 
 .diff { font-size: 0.72rem; padding: 0.16rem 0.5rem; border-radius: 999px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .diff-easy { background: #e6f6ec; color: #14683a; }
@@ -539,6 +571,9 @@ hr.sep { border: none; border-top: 1px solid #dbe6f6; margin: 1.8rem 0; }
 .reveal-btn:hover { color: var(--bc-blue-800); }
 .reveal-btn:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 3px; }
 .reveal-btn[hidden] { display: none; }
+/* A pending request must read as pending, not as a live link. The reveal button
+   is not a .btn, so it does not inherit .btn:disabled. */
+.reveal-btn:disabled { color: var(--text-muted); cursor: progress; text-decoration: none; }
 
 /* Visually hidden but announced, for the check outcome. */
 .visually-hidden {
