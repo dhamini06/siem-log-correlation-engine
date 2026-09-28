@@ -2,6 +2,43 @@
 
 ## Docker / Elasticsearch / Kibana
 
+**`max virtual memory areas vm.max_map_count [65530] is too low`**
+
+Elasticsearch 8 refuses to start unless the host allows enough memory-map areas for the Lucene
+index. This is the most common Elasticsearch-on-Docker failure, and it presents as a container
+that exits immediately or restarts in a loop:
+
+```powershell
+docker compose logs elasticsearch | Select-String "max_map_count"
+```
+
+**Linux / Ubuntu / WSL2** — raise the limit persistently:
+
+```bash
+sudo sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.d/99-elasticsearch.conf
+sudo sysctl --system
+```
+
+**Docker Desktop on Windows** — no host change is normally needed, because Elasticsearch runs
+inside a Linux VM whose limit is already high. If you still hit it, raise the WSL2 limit in
+`%UserProfile%\.wslconfig`:
+
+```ini
+[wsl2]
+kernelCommandLine = "sysctl.vm.max_map_count=262144"
+```
+
+then run `wsl --shutdown` and restart Docker Desktop. Verify the limit the container actually
+sees:
+
+```powershell
+docker exec es sysctl vm.max_map_count
+```
+
+The shipped stack avoids this by design: a pinned 512 MB heap inside a 2 GB container stays well
+inside the default limit. You will only meet it on a bare Ubuntu server or a constrained host.
+
 **`docker` is not recognized**
 Docker Desktop is not installed or not on `PATH`. Install Docker Desktop, then open a new
 PowerShell window. `.\scripts\setup.ps1 -SkipDocker` lets you continue without Docker (unit
@@ -74,6 +111,102 @@ The generator's validator fails if any visualization/dashboard is missing `index
 at the wrong data view, or carries a dangling reference. `tests/test_dashboard_ndjson.py` guards
 the same invariant. Both data views must exist first: `security-alerts-*` (time field
 `timestamp`) and `normalized-events-*` (time field `@timestamp`).
+
+**Data view says "This dashboard has no data" / a data view is not found**
+
+Kibana data views are field-capable objects: they only enumerate a field once an index matching
+their pattern has actually been written. Consequences, all common on a first run:
+
+- **The pattern must match a real index.** `security-alerts-*` shows an empty field list until
+  at least one `security-alerts-YYYY-MM-DD` index exists. Generate and correlate first, then
+  open Discover: `python -m src.main generate-samples --scenario all`, `ingest`,
+  `correlate --run-once`.
+- **A time field is mandatory.** A data view with no time field cannot be used by Discover or by
+  any time-based panel. This lab sets `timestamp` for `security-alerts-*` and `@timestamp` for
+  `normalized-events-*`. Verify:
+  ```powershell
+  curl.exe -s -H "kbn-xsrf: x" "http://localhost:5601/api/data_views/data_view/siem-security-alerts"
+  # .data_view.timeFieldName must be "timestamp"
+  ```
+  If it is empty, delete the data view in *Stack Management → Data views*, re-run
+  `python -m src.main import-dashboard`, and recreate it against the live index.
+- **The dashboard time range must cover the data.** The SOC Triage Board defaults to `now-7d`.
+  If you replay a lab with timestamps older than that, or the clock is wrong, every panel is
+  empty even though documents exist. Widen the range to `now-30d` while debugging.
+- **Fields appear only after a refresh.** Add a field by re-opening the data view, or hit
+  *Refresh fields* in the field list popup.
+
+**Events are rejected as "in the future", or correlation windows look empty (timezone drift)**
+
+Every timestamp in the lab is normalised to UTC, and the schema enforces
+`@timestamp <= ingest_timestamp`. A source host whose clock is ahead therefore produces events
+that are rejected or shifted, which looks like a correlation rule silently missing an attack.
+
+```powershell
+# what the parser produced vs. when it was ingested
+curl.exe -s "http://localhost:9200/normalized-events-*/_search?size=3&sort=@timestamp:desc" |
+  Select-String "@timestamp","ingest_timestamp"
+
+# host clock vs. the container's idea of now
+Get-Date -Format o
+docker exec es date -u +%Y-%m-%dT%H:%M:%SZ
+```
+
+- Fix NTP on the log source host first; that is the root cause.
+- Confirm the container runs in UTC: `docker-compose.yml` sets no `TZ`, so the JVM uses UTC.
+  Aware that year-less syslog lines (`Sep 25 11:14:54 …`) have **no year**, so
+  `src/utils/time_utils.py` infers the current UTC year. Replaying a log file captured in a
+  previous December will therefore land in the wrong year. Use the sample generator, or pass
+  ISO-8601 timestamps, for anything you intend to replay.
+- Kibana displays times in the **browser's** timezone, not the stored one. If a student reports
+  an hour that disagrees with the alert, check their profile timezone before suspecting the data.
+
+## Filebeat (optional live ingestion)
+
+The lab does not require Filebeat: `logs/generated` plus `ingest` is the documented local path,
+and nothing in `docker-compose.yml` runs Filebeat. This section only applies if you choose the
+optional live path from `docs/TRAINING_PLATFORM.md`.
+
+**Filebeat re-ships the same log lines and the alert counts inflate**
+
+Filebeat persists its read position in a **registry** file, and re-reads from there on restart. If
+the registry is deleted, reset, or pointed at a different data directory, Filebeat re-reads the
+whole file from the beginning. Because ingestion is idempotent (deterministic document IDs), that
+alone is harmless — but if the log file has also been rotated or re-generated with new timestamps,
+the same attack appears twice with different document IDs, and the event count drifts away from
+the canonical 50.
+
+```powershell
+# where is the registry, and what has it recorded?
+Get-Content .\.filebeat\registry.json -ErrorAction SilentlyContinue
+Get-ChildItem -Recurse -Filter "registry.json" -Path C:\ProgramData\Filebeat, .\logs\live -ErrorAction SilentlyContinue
+
+# do we have duplicates?
+python -m src.main stats
+```
+
+- Fix A — resume from the recorded offset (normal restart): start Filebeat with the **same**
+  `-path.data` and `-registry` directories it used before. Changing either one forces a re-read.
+- Fix B — deliberately re-read from the start after fixing a config: stop Filebeat, delete only
+  `registry.json` (never the log files), then start it again.
+- Fix C — you changed the log source's timestamps rather than its content, and now hold two
+  copies of the same incident. Reset the lab dataset and replay once:
+  `python scripts\reset_lab_data.py --yes`, then `generate-samples`, `ingest`, `correlate`.
+- Always ship each file to exactly one place. Feeding both a file tail and a Filebeat copy of the
+  same events is the usual cause of a doubled alert count.
+
+**Filebeat cannot write to Elasticsearch, or the index has the wrong mapping**
+
+Confirm the output target and that the raw template exists:
+
+```powershell
+curl.exe -s "http://localhost:9200/_index_template" | Select-String "raw-events"
+```
+
+`raw-events` is installed alongside the other two templates by
+`python -m src.main init-templates`. If it is missing, re-run that command. Live lines are stored
+raw on purpose: the Python engine performs normalization, so the parsers and correlation rules
+behave identically for sample and live data.
 
 **Dashboard panels are blank, empty, or stuck on "loading" (most common lab failure)**
 The panels are almost always fine — **Elasticsearch is being OOM-killed**. When ES dies,

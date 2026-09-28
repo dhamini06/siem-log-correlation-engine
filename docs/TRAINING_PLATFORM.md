@@ -167,7 +167,7 @@ The platform grades student answers **server-side**, so the key never reaches th
 
 | Piece | Location | Reachable by a student? |
 |---|---|---|
-| `docs/answer-key.json` | machine-readable form of the instructor answer key | **No** — outside the `training/` root |
+| `data/answer-key.json` | machine-readable form of the instructor answer key | **No** — untracked, and outside the `training/` root |
 | `scripts/answer_grader.py` | the grading logic | **No** — imported only by the server |
 | `POST /api/check` | verdict plus hints for a submission | yes, this is the endpoint |
 | `POST /api/reveal` | model solution for one question, on request | yes, only when asked |
@@ -212,8 +212,33 @@ Two guards stop it being too loose:
 - **Hints never contain answers.** `tests/test_answer_validation.py` asserts that no label or hint
   states a value the scenario page does not already display, and that no hint echoes the solution.
 
-Adjust what is graded by editing `docs/answer-key.json` — no code change needed. Each question
+Adjust what is graded by editing `data/answer-key.json` — no code change needed. Each question
 carries `required: true` for machine-checked parts and `required: false` for self-reviewed ones.
+
+### The key is not in version control
+
+The GitHub repository is **public**, so the answer key is deliberately **not committed**. Anyone
+who can read the repository could otherwise read every scenario answer, which would defeat the
+exercise entirely.
+
+The grader resolves the key at runtime, in this order:
+
+1. `$SIEM_ANSWER_KEY` — explicit override, if set
+2. `data/answer-key.json` — the normal local location
+3. `docs/answer-key.json` — legacy location, still honoured
+
+Because `data/` is in `.gitignore`, the key never appears in `git status` and cannot be committed
+by accident. A fresh clone therefore has **no** key: `POST /api/check` returns a clear
+`answer key not found at …` error naming the expected path, and the platform tells the student
+that answer checking is unavailable. Everything else — the SIEM, the dashboard, the scenarios
+and their notes — works without it.
+
+To restore checking on a new machine, put your instructor copy at `data/answer-key.json`, or set
+`$env:SIEM_ANSWER_KEY = "C:\path\to\answer-key.json"`.
+
+> `docs/INSTRUCTOR_GUIDE.md` **is** tracked and states the same answers in prose. It is the
+> required instructor deliverable, so it stays. If the repository must not be readable by
+> students at all, make the repository private — untracking the JSON alone is not sufficient.
 
 ### What is deliberately not graded
 

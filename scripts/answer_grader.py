@@ -2,8 +2,10 @@
 
 Security model
 --------------
-The answer key is a data file (``docs/answer-key.json``) that lives OUTSIDE the
-``training/`` directory served to students. This module is imported only by
+The answer key is a local data file (``data/answer-key.json``) that is deliberately NOT
+version controlled, because the repository is public and a committed key would
+publish every scenario answer. It also lives outside the ``training/`` directory
+served to students. This module is imported only by
 ``scripts/serve_training.py`` and runs exclusively on the server.
 
 What the browser can learn per submission:
@@ -54,7 +56,32 @@ __all__ = [
 ]
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ANSWER_KEY_PATH = os.path.join(ROOT, "docs", "answer-key.json")
+
+# The answer key is deliberately NOT version controlled: the GitHub repository is
+# public, and a committed key would hand the scenario answers to anyone who can
+# read it. It lives under data/, which .gitignore already excludes.
+#
+# Resolution order:
+#   1. $SIEM_ANSWER_KEY            - explicit override
+#   2. data/answer-key.json        - the local, untracked copy
+#   3. docs/answer-key.json        - legacy location, still honoured
+ANSWER_KEY_RELATIVE = os.path.join("data", "answer-key.json")
+ANSWER_KEY_LEGACY_RELATIVE = os.path.join("docs", "answer-key.json")
+
+
+def _resolve_answer_key_path() -> str:
+    """Locate the answer key, preferring the untracked data/ location."""
+    override = os.environ.get("SIEM_ANSWER_KEY")
+    if override:
+        return os.path.abspath(override)
+    for relative in (ANSWER_KEY_RELATIVE, ANSWER_KEY_LEGACY_RELATIVE):
+        candidate = os.path.join(ROOT, relative)
+        if os.path.isfile(candidate):
+            return candidate
+    return os.path.join(ROOT, ANSWER_KEY_RELATIVE)
+
+
+ANSWER_KEY_PATH = _resolve_answer_key_path()
 
 # Bounded so a pasted document cannot make grading quadratic, and so the
 # log/response surface stays small.
@@ -182,7 +209,12 @@ def load_key(path: str = None) -> dict:
         with open(path, "r", encoding="utf-8") as handle:
             key = json.load(handle)
     except FileNotFoundError as exc:
-        raise GradingError(f"answer key not found at {path}") from exc
+        raise GradingError(
+            f"answer key not found at {path}. The key is intentionally not in "
+            f"version control (this repository is public). Place your instructor "
+            f"copy at data{os.sep}answer-key.json, or point $SIEM_ANSWER_KEY at it. "
+            f"docs/INSTRUCTOR_GUIDE.md is the source of truth it is derived from."
+        ) from exc
     except json.JSONDecodeError as exc:
         raise GradingError(f"answer key is not valid JSON: {exc}") from exc
     if not isinstance(key.get("scenarios"), dict) or not key["scenarios"]:

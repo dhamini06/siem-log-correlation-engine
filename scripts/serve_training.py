@@ -17,8 +17,8 @@ the answer key never reaches the browser:
     POST /api/reveal   {"scenario": "...", "question": "q1"}
         -> the model solution for one question, marked as assisted.
 
-The key itself lives in ``docs/answer-key.json``, outside the directory served
-here, and is read only by ``scripts/answer_grader.py``.
+The key itself lives at ``data/answer-key.json`` — untracked, and outside the
+directory served here. It is read only by ``scripts/answer_grader.py``.
 
 For a production-style deployment on Ubuntu, put the `training/` directory
 behind nginx or any static web server instead. Note that a purely static

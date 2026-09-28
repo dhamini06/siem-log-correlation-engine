@@ -19,7 +19,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRAINING = os.path.join(REPO_ROOT, "training")
 SCENARIOS_DIR = os.path.join(TRAINING, "scenarios")
 SCRIPTS = os.path.join(REPO_ROOT, "scripts")
-ANSWER_KEY = os.path.join(REPO_ROOT, "docs", "answer-key.json")
+# The key lives under data/, which is git-ignored: the repository is public.
+ANSWER_KEY = os.path.join(REPO_ROOT, "data", "answer-key.json")
+LEGACY_ANSWER_KEY = os.path.join(REPO_ROOT, "docs", "answer-key.json")
 INSTRUCTOR_GUIDE = os.path.join(REPO_ROOT, "docs", "INSTRUCTOR_GUIDE.md")
 
 sys.path.insert(0, SCRIPTS)
@@ -136,6 +138,40 @@ def test_answer_key_file_is_outside_the_served_tree():
     served = os.path.join(REPO_ROOT, "training")
     assert not ANSWER_KEY.startswith(served + os.sep)
     assert not os.path.exists(os.path.join(served, "answer-key.json"))
+
+
+def test_answer_key_is_not_committed_to_the_public_repository():
+    """Regression: the repository is public, so the key must stay untracked.
+
+    Guards both the current location and the legacy one, and asserts .gitignore
+    still covers them so a well-meaning `git add .` cannot publish the answers.
+    """
+    tracked = set(subprocess.run(
+        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True,
+    ).stdout.split())
+    assert "data/answer-key.json" not in tracked
+    assert "docs/answer-key.json" not in tracked
+
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", os.path.relpath(ANSWER_KEY, REPO_ROOT)],
+        cwd=REPO_ROOT,
+    ).returncode
+    assert ignored == 0, "data/answer-key.json must be git-ignored"
+
+
+def test_grader_finds_the_key_at_its_untracked_location():
+    """The grader must resolve the key without any code change at call sites."""
+    assert os.path.isfile(ANSWER_KEY), "local instructor key missing"
+    assert G.ANSWER_KEY_PATH == ANSWER_KEY
+    assert G.load_key()["scenarios"]
+
+
+def test_missing_key_raises_an_actionable_error(tmp_path):
+    with pytest.raises(G.GradingError) as exc:
+        G.load_key(str(tmp_path / "absent.json"))
+    message = str(exc.value)
+    assert "not in version control" in message
+    assert "SIEM_ANSWER_KEY" in message
 
 
 def test_no_answer_key_reference_in_student_assets():
@@ -461,7 +497,8 @@ def test_api_rejects_bad_requests_without_a_traceback(server):
 def test_answer_key_is_not_reachable_over_http(server):
     """Even a direct request for the key path must not serve it."""
     for path in ("/../docs/answer-key.json", "/answer-key.json",
-                 "/%2e%2e/docs/answer-key.json"):
+                 "/%2e%2e/docs/answer-key.json",
+                 "/../data/answer-key.json", "/%2e%2e/data/answer-key.json"):
         try:
             with urllib.request.urlopen(server + path, timeout=5) as response:
                 body = response.read().decode("utf-8", "replace")

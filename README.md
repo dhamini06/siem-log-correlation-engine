@@ -132,7 +132,7 @@ challenge a detection rather than trust it.
 | PyYAML | 6.0.1 | rule configuration |
 | APScheduler | 3.10.4 | optional scheduled correlation cycle |
 | `requests` | 2.31.0 | Kibana saved-objects API |
-| pytest / pytest-cov | 8.2.0 / 5.0.0 | 287-test suite, no Docker needed |
+| pytest / pytest-cov | 8.2.0 / 5.0.0 | 396-test suite, no Docker needed |
 | HTML / CSS / vanilla JS | — | training platform, no framework, no build step |
 | Python stdlib `http.server` | — | serves the training platform |
 
@@ -442,9 +442,14 @@ A representative alert document:
 ## Testing and validation
 
 ```powershell
-python -m pytest tests -q
-python -m pytest tests --cov=src --cov-report=term-missing
+# from the project virtual environment, which is where pytest-cov is installed
+.\.venv\Scripts\python.exe -m pytest tests -q
+.\.venv\Scripts\python.exe -m pytest tests --cov=src --cov-report=term-missing
 ```
+
+On Linux/macOS use `./.venv/bin/python` instead. Plain `python -m pytest tests -q` works with
+any interpreter that has `pytest`; only the `--cov` form needs `pytest-cov`, which is declared in
+`requirements.txt` and installed by `scripts\setup.ps1` into `.venv`.
 
 ```
 396 passed, 1 skipped
@@ -491,6 +496,24 @@ environment variables (`ES_HOST`, `ES_PORT`, `KIBANA_URL`, `RULE_MIN_FAILURES`,
 See [`docs/CONFIGURATION_REFERENCE.md`](docs/CONFIGURATION_REFERENCE.md) for every parameter and
 [`docs/FALSE_POSITIVE_TUNING.md`](docs/FALSE_POSITIVE_TUNING.md) for the tuning methodology.
 
+### Index templates and optional live ingestion
+
+`python -m src.main init-templates` installs all three index templates:
+
+| Template | Indices | Used by |
+|---|---|---|
+| `normalized-events` | `normalized-events-*` | the sample and live pipelines |
+| `security-alerts` | `security-alerts-*` | the correlation engine and the dashboard |
+| `raw-events` | `raw-events-*` | the **optional** Filebeat path only |
+
+The `raw-events` template is installed even though nothing in `docker-compose.yml` runs Filebeat.
+It is inert until a document is actually shipped, so it has no effect on the local sample-data
+workflow. It exists because the configs in `config/filebeat/` target `raw-events-*`, and
+`init-templates` is the initialization path that has to create it. Live lines are stored raw for
+evidence; normalization stays in the Python engine, so the same parsers and correlation rules run
+for sample and live data. See [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) for Filebeat
+registry and offset problems.
+
 ---
 
 ## Project structure
@@ -534,9 +557,9 @@ dashboards/
   soc-triage-board.ndjson         Kibana saved objects (generated)
 logs/samples/                     hand-inspectable reference fixture per log format
 docs/
-  answer-key.json                 machine-readable answer key (never served)
   TRAINING_PLATFORM.md            how the student platform is run and deployed
   INSTRUCTOR_GUIDE.md             instructor-only answer key and rubric
+  answer-key.json                 NOT tracked - lives at data/answer-key.json (git-ignored)
   LOG_PARSER_REFERENCE.md         regex patterns, assumptions, example matches
   RULE_LOGIC.md                   rule pseudocode, flowcharts, evidence semantics
   CONFIGURATION_REFERENCE.md      every tunable parameter

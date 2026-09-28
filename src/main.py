@@ -26,6 +26,7 @@ logger = logging.getLogger("siem.main")
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INDEX_TEMPLATE_PATH = os.path.join(REPO_ROOT, "config", "elasticsearch-template.json")
 ALERT_TEMPLATE_PATH = os.path.join(REPO_ROOT, "config", "elasticsearch-alert-template.json")
+RAW_TEMPLATE_PATH = os.path.join(REPO_ROOT, "config", "elasticsearch-raw-template.json")
 
 
 def _load_json(path: str) -> Dict[str, Any]:
@@ -42,7 +43,7 @@ def _es_client():
 # -- Commands --
 
 def cmd_init_templates(args: argparse.Namespace) -> int:
-    """Apply the normalized-events and security-alerts index templates."""
+    """Apply the normalized-events, security-alerts and raw-events index templates."""
     es = _es_client()
     if not es.health_check():
         print(f"Elasticsearch is not reachable at {es.url}", file=sys.stderr)
@@ -52,6 +53,10 @@ def cmd_init_templates(args: argparse.Namespace) -> int:
     for path, name in (
         (INDEX_TEMPLATE_PATH, "normalized-events"),
         (ALERT_TEMPLATE_PATH, "security-alerts"),
+        # raw-events backs the optional Filebeat path (docs/TRAINING_PLATFORM.md).
+        # The local sample workflow never writes to it, so installing the template
+        # is inert: no index is created until Filebeat actually ships a document.
+        (RAW_TEMPLATE_PATH, "raw-events"),
     ):
         if not os.path.isfile(path):
             print(f"Template file missing: {path}", file=sys.stderr)

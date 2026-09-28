@@ -12,8 +12,9 @@ now, so you can re-verify at any time.
 ## 0. Student answer checking (instructor notes)
 
 The platform checks student answers automatically. This guide remains the authoritative
-source of truth; \docs/answer-key.json\ is its machine-readable form and must be kept in step
-with it.
+source of truth. Its machine-readable form, `data/answer-key.json`, is what the platform
+actually grades against, and is deliberately not in version control because the repository
+is public. Keep the two in step when you edit either one.
 
 | Aspect | Behaviour |
 |---|---|
