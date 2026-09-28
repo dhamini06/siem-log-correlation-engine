@@ -97,6 +97,10 @@
         <li><strong>Rank and escalate</strong>Decide which finding is most serious and justify it with the alert severity and the evidence.</li>
         <li><strong>Write the handover</strong>Produce a short incident conclusion an oncoming analyst could act on.</li>
       </ol>
+      <p class="linkrow" style="margin-top:1rem">
+        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
+        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
+      </p>
     </div>
   </section>
 
@@ -106,59 +110,97 @@
       <h2>Answer every question</h2>
     </div>
 
+    <p class="saved-note" id="saved-note">Saved in this browser only.</p>
     <ol class="qlist">
-      <li>
-        <strong>How many alerts are on the board, and how do they split by severity and by rule?</strong>
+      <li data-question-row="q1">
+        <strong>How many alerts are on the board, and how do they split by severity and by rule?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q1" placeholder="Counts by severity and rule"></textarea></div>
-        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>List every alert with: rule name, severity, source IP, user, host, and timestamp. This is your master table.</strong>
+      <li data-question-row="q2">
+        <strong>List every alert with: rule name, severity, source IP, user, host, and timestamp. This is your master table.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q2" placeholder="Master alert table"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>How many distinct source IPs generated alerts, and which host did each target?</strong>
+      <li data-question-row="q3">
+        <strong>How many distinct source IPs generated alerts, and which host did each target?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q3" placeholder="Source IPs and targets"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Build the timeline: what happened first, what happened last, and what is the total elapsed span of the attack activity?</strong>
+      <li data-question-row="q4">
+        <strong>Build the timeline: what happened first, what happened last, and what is the total elapsed span of the attack activity?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q4" placeholder="First / last / span"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Two alerts share a host but have different source IPs and different users. Are they the same incident? Justify your answer.</strong>
+      <li data-question-row="q5">
+        <strong>Two alerts share a host but have different source IPs and different users. Are they the same incident? Justify your answer.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q5" placeholder="Same or separate, with reasoning"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Which alert is the most serious, and why? Name the rule and the evidence that makes it worse than the others.</strong>
+      <li data-question-row="q6">
+        <strong>Which alert is the most serious, and why? Name the rule and the evidence that makes it worse than the others.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q6" placeholder="Most serious alert + justification"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What does the firewall contribute to this incident that the host logs alone do not?</strong>
+      <li data-question-row="q7">
+        <strong>What does the firewall contribute to this incident that the host logs alone do not?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q7" placeholder="Firewall contribution"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Identify TWO pieces of activity in this lab that looked suspicious but correctly produced no alert. Explain the rule or window that kept each one quiet.</strong>
+      <li data-question-row="q8">
+        <strong>Identify TWO pieces of activity in this lab that looked suspicious but correctly produced no alert. Explain the rule or window that kept each one quiet.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q8" placeholder="Two non-alerting activities + reasons"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What is the routine background activity on the web server, and how do you prove it is normal rather than an early-stage attack?</strong>
+      <li data-question-row="q9">
+        <strong>What is the routine background activity on the web server, and how do you prove it is normal rather than an early-stage attack?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q9" placeholder="Baseline activity + proof"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Write the handover: a short incident conclusion covering impact, affected assets, the attacker's objectives as far as the evidence supports them, and your three recommended next actions.</strong>
+      <li data-question-row="q10">
+        <strong>Write the handover: a short incident conclusion covering impact, affected assets, the attacker's objectives as far as the evidence supports them, and your three recommended next actions.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q10" placeholder="Incident conclusion and next actions"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q10">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q10" hidden>Show solution</button>
       </li>
     </ol>
 
-    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
-      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+    <div class="check-actions">
+      <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
+      <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
       <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
       <a class="btn btn-outline" href="../instructions.html">Back to the guide</a>
       <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+      <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
     </div>
+    <p class="check-gate-note" id="check-gate-note"><strong>Mark scenario complete</strong> unlocks once every checkable answer is correct. Use <strong>Check answers</strong> to find out where you are.</p>
+    <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
     <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
-      <span class="callout-title">Scenario marked complete</span>
-      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+      <span class="callout-title">Scenario completed</span>
+      <p class="mb0">Every checkable answer was correct and your progress is saved in this browser. Move on to the next scenario, or revisit any hint you opened.</p>
     </div>
   </section>
 
@@ -286,6 +328,7 @@
 </footer>
 
 <script src="../assets/js/lab.js"></script>
+<script src="../assets/js/lab-check.js"></script>
 <script>
   (function () {
     var ES = "http://localhost:9200";

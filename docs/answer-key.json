@@ -1,0 +1,1135 @@
+{
+  "version": 1,
+  "source": "docs/INSTRUCTOR_GUIDE.md",
+  "note": "Machine-readable form of the instructor answer key. This file lives OUTSIDE the training/ directory and is therefore never served as a static asset. scripts/serve_training.py reads it server-side to grade submissions. Browser-visible answers are returned only when a student explicitly requests 'Show Solution' for a single question, which flags the scenario as assisted. Session-variable values (absolute UTC timestamps, PIDs) are deliberately NOT graded, because the sample generator re-bases them on every lab session.",
+  "scenarios": {
+    "scenario-1": {
+      "title": "Brute Force Investigation",
+      "questions": {
+        "q1": {
+          "label": "Source IP and target host",
+          "required": true,
+          "parts": [
+            {
+              "label": "source IP",
+              "accept": [
+                "203.0.113.45"
+              ],
+              "hint": "Read src_ip on the alert, or in the firewall events for the same burst."
+            },
+            {
+              "label": "target host",
+              "accept": [
+                "web-01"
+              ],
+              "hint": "The host field is the same on every evidence event."
+            }
+          ],
+          "solution": "203.0.113.45 -> web-01"
+        },
+        "q2": {
+          "label": "Accounts attacked and per-account counts",
+          "required": true,
+          "parts": [
+            {
+              "label": "first account targeted",
+              "accept": [
+                "root"
+              ],
+              "hint": "Break the logon_failure events down by user in Discover to get the per-account counts."
+            },
+            {
+              "label": "second account targeted",
+              "accept": [
+                "admin"
+              ],
+              "hint": "A second account appears, and its log lines are recorded differently from the first. Compare the raw_event of each failure."
+            },
+            {
+              "label": "attempts per account",
+              "accept": [
+                "5"
+              ],
+              "patterns": [
+                "\\b5\\s*(?:x|×|times|attempts?|logons?|each)?\\b",
+                "\\bfive\\b"
+              ],
+              "hint": "Count the failures for each account in the evidence set."
+            }
+          ],
+          "solution": "root x 5, admin x 5 (admin logged as \"Invalid user admin\")"
+        },
+        "q3": {
+          "label": "Failure count and time window",
+          "required": true,
+          "parts": [
+            {
+              "label": "number of failed logons",
+              "accept": [
+                "10"
+              ],
+              "patterns": [
+                "\\b10\\b",
+                "\\bten\\b"
+              ],
+              "hint": "The alert's evidence_event_ids array is the authoritative set - count it, then sort by @timestamp."
+            },
+            {
+              "label": "elapsed length of the window",
+              "accept": [
+                "132"
+              ],
+              "patterns": [
+                "\\b132\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\b2\\s*(?:min|mins|minute|minutes)\\s*12\\b",
+                "\\b2:12\\b",
+                "\\b132\\b"
+              ],
+              "hint": "Subtract the earliest @timestamp from the latest in the evidence set, and give the elapsed time in seconds."
+            }
+          ],
+          "solution": "10 failed logons spanning 132 seconds (2 min 12 s) - absolute times shift each session"
+        },
+        "q4": {
+          "label": "Rule and the two thresholds crossed",
+          "required": true,
+          "parts": [
+            {
+              "label": "rule name",
+              "accept": [
+                "brute_force"
+              ],
+              "hint": "rule_name on the alert document. It is also listed in config/app-config.yaml."
+            },
+            {
+              "label": "min_failures",
+              "accept": [
+                "min_failures"
+              ],
+              "patterns": [
+                "\\bmin[_\\s-]?failures\\b",
+                "\\bmin[_\\s-]?failures\\b\\s*[:=]?\\s*5\\b"
+              ],
+              "hint": "The 'how many' parameter lives in config/app-config.yaml under rules.brute_force."
+            },
+            {
+              "label": "time_window_minutes",
+              "accept": [
+                "time_window_minutes"
+              ],
+              "patterns": [
+                "\\btime[_\\s-]?window[_\\s-]?minutes\\b",
+                "\\btime[_\\s-]?window\\b"
+              ],
+              "hint": "The 'over what period' parameter is the second key under rules.brute_force."
+            }
+          ],
+          "solution": "rule brute_force; min_failures: 5 and time_window_minutes: 5"
+        },
+        "q5": {
+          "label": "Whether a success followed",
+          "required": true,
+          "parts": [
+            {
+              "label": "answer is no",
+              "accept": [],
+              "patterns": [
+                "\\bno\\b",
+                "\\bnone\\b",
+                "\\bnot\\b",
+                "\\bnever\\b",
+                "\\bnothing\\b",
+                "\\b0\\s*(?:success|logon|login)",
+                "\\bwithout\\b"
+              ],
+              "hint": "Filter normalized-events-* by src_ip of the attacker and look for any logon_success."
+            }
+          ],
+          "solution": "No. No logon_success exists for that source IP; rule 1 also self-suppresses when a success is seen, handing the case to rule 2."
+        },
+        "q6": {
+          "label": "Firewall corroboration",
+          "required": true,
+          "parts": [
+            {
+              "label": "same source IP",
+              "accept": [
+                "203.0.113.45"
+              ],
+              "hint": "The corroborating firewall events use the same src_ip as the SSH burst."
+            },
+            {
+              "label": "destination IP",
+              "accept": [
+                "10.0.0.10"
+              ],
+              "hint": "Read dst_ip (or DST=) on the fw-01 network_connection events."
+            },
+            {
+              "label": "destination port",
+              "accept": [
+                "22"
+              ],
+              "patterns": [
+                "\\b22\\b",
+                "\\bssh\\b"
+              ],
+              "hint": "The port field on the network_connection event, or DPT= in the raw UFW line."
+            },
+            {
+              "label": "number of blocked events",
+              "accept": [
+                "3"
+              ],
+              "patterns": [
+                "\\b3\\b",
+                "\\bthree\\b"
+              ],
+              "hint": "Count the network_connection events on fw-01 for that source IP."
+            }
+          ],
+          "solution": "3 UFW BLOCK events on fw-01: 203.0.113.45 -> 10.0.0.10, port 22, seconds after the SSH burst"
+        },
+        "q7": {
+          "label": "The non-alerting account",
+          "required": true,
+          "parts": [
+            {
+              "label": "the account that did not alert",
+              "accept": [
+                "svc_backup"
+              ],
+              "hint": "Look for other logon_failure bursts on the same web server coming from inside the network."
+            },
+            {
+              "label": "its failure count",
+              "accept": [
+                "4"
+              ],
+              "patterns": [
+                "\\b4\\b",
+                "\\bfour\\b"
+              ],
+              "hint": "Count that account's failures."
+            },
+            {
+              "label": "why the rule did not fire",
+              "accept": [
+                "5"
+              ],
+              "patterns": [
+                "\\bmin[_\\s-]?failures\\b",
+                "\\b5\\b",
+                "\\bthreshold\\b",
+                "\\bbelow\\b",
+                "\\bunder\\b",
+                "\\bless\\b"
+              ],
+              "hint": "Compare that count with the rule's configured count threshold in config/app-config.yaml and say why it fell short."
+            }
+          ],
+          "solution": "svc_backup from 10.0.0.30: 4 failures then a success. 4 < min_failures (5), so no alert."
+        },
+        "q8": {
+          "label": "Interpreting the log lines",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "\"Invalid user admin\" means the account does not exist, so sshd rejected it before a password check. Combined with \"Failed password for root\", the attacker was cycling a username list - credential stuffing, not one targeted account.",
+          "review_prompt": "Does your answer explain that the account did not exist, and that the attacker was cycling a list of usernames?"
+        },
+        "q9": {
+          "label": "Final security finding",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "An external host (203.0.113.45) ran an automated credential attack against SSH on web-01, attempting 10 authentications across root and admin inside 2 min 12 s. Every attempt was rejected and the perimeter firewall blocked the follow-on connections, so no account was compromised.",
+          "review_prompt": "Does your finding name the activity, target, origin, volume, window, outcome and impact?"
+        }
+      }
+    },
+    "scenario-2": {
+      "title": "Successful Login After Brute Force",
+      "questions": {
+        "q1": {
+          "label": "Rule, source IP, host and account",
+          "required": true,
+          "parts": [
+            {
+              "label": "rule name",
+              "accept": [
+                "successful_brute_force"
+              ],
+              "hint": "Find the only alert with severity critical on the board and read its rule_name."
+            },
+            {
+              "label": "source IP",
+              "accept": [
+                "203.0.113.66"
+              ],
+              "hint": "The src_ip field of that critical alert."
+            },
+            {
+              "label": "host",
+              "accept": [
+                "web-01"
+              ],
+              "hint": "Same field as src_ip on the alert document."
+            },
+            {
+              "label": "the account involved",
+              "accept": [
+                "alice"
+              ],
+              "hint": "The user field of the alert, which is also in the success event's raw_event."
+            }
+          ],
+          "solution": "successful_brute_force, src_ip 203.0.113.66, host web-01, account alice"
+        },
+        "q2": {
+          "label": "Timestamps of the five failures",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "Five failures, then a success. Absolute UTC times shift every session, so they are not graded.",
+          "review_prompt": "List all five failure timestamps in ascending order, and confirm you read them from the evidence events rather than the alert."
+        },
+        "q3": {
+          "label": "Elapsed time to the success",
+          "required": true,
+          "parts": [
+            {
+              "label": "elapsed time from first failure to success",
+              "accept": [
+                "129"
+              ],
+              "patterns": [
+                "\\b129\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\b2\\s*(?:min|mins|minute|minutes)\\s*0?9\\b",
+                "\\b2:0?9\\b",
+                "\\b129\\b"
+              ],
+              "hint": "Subtract the first failure's @timestamp from the success event's @timestamp."
+            }
+          ],
+          "solution": "129 seconds (2 min 9 s) from first failure to the accepted login"
+        },
+        "q4": {
+          "label": "Evidence count composition",
+          "required": true,
+          "parts": [
+            {
+              "label": "total evidence events",
+              "accept": [
+                "6"
+              ],
+              "patterns": [
+                "\\b6\\b",
+                "\\bsix\\b"
+              ],
+              "hint": "Count evidence_event_ids on the alert, then classify them by event_type."
+            },
+            {
+              "label": "how many were failures",
+              "accept": [
+                "5"
+              ],
+              "patterns": [
+                "\\b5\\b",
+                "\\bfive\\b"
+              ],
+              "hint": "Filter the evidence set to event_type logon_failure."
+            },
+            {
+              "label": "how many were the success",
+              "accept": [
+                "1"
+              ],
+              "patterns": [
+                "\\b1\\b",
+                "\\bone\\b",
+                "\\bsingle\\b"
+              ],
+              "hint": "The remaining event in the evidence set is the logon_success."
+            }
+          ],
+          "solution": "6 events = 5 failed logons + 1 successful logon"
+        },
+        "q5": {
+          "label": "Why the severity escalated",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "Rule 2 is an escalation: it fires only when the rule-1 burst condition is met AND a success follows within success_window_minutes: 10. A success changes the meaning from attempted to achieved, so severity goes high -> critical.",
+          "review_prompt": "Does your answer explain the success_window_minutes: 10 gate and why achieved access is more serious than an attempt?"
+        },
+        "q6": {
+          "label": "Contrast with scenario 1",
+          "required": true,
+          "parts": [
+            {
+              "label": "scenario 1 source IP",
+              "accept": [
+                "203.0.113.45"
+              ],
+              "hint": "The high-severity brute_force alert from the previous scenario."
+            },
+            {
+              "label": "how many failures in the earlier scenario",
+              "accept": [
+                "10"
+              ],
+              "patterns": [
+                "\\b10\\b",
+                "\\bten\\b"
+              ],
+              "hint": "Count the evidence events on the brute_force alert."
+            },
+            {
+              "label": "scenario 2 source IP",
+              "accept": [
+                "203.0.113.66"
+              ],
+              "hint": "The src_ip of the critical alert you are analysing now."
+            },
+            {
+              "label": "how many failures in this scenario, and did a success follow",
+              "accept": [
+                "5"
+              ],
+              "patterns": [
+                "\\b5\\b",
+                "\\bfive\\b"
+              ],
+              "hint": "Filter this alert's evidence set to logon_failure."
+            }
+          ],
+          "solution": "Scenario 1: 203.0.113.45, root/admin, 10 failures, no success, high. Scenario 2: 203.0.113.66, alice, 5 failures then a success, critical."
+        },
+        "q7": {
+          "label": "Proof of an authenticated session",
+          "required": true,
+          "parts": [
+            {
+              "label": "the process recorded on the success event",
+              "accept": [
+                "sshd"
+              ],
+              "hint": "Read the process field on the successful logon event."
+            },
+            {
+              "label": "the raw log line of the success event",
+              "accept": [
+                "accepted password",
+                "acceptedpassword",
+                "accepted"
+              ],
+              "patterns": [
+                "\\baccepted\\b"
+              ],
+              "hint": "Read the raw_event of the success event - it is the original untouched log line, and it reads differently from every failure."
+            }
+          ],
+          "solution": "The success event's process.name is sshd and its raw_event reads \"Accepted password for alice ... ssh2\"; the failures carry no process because no session was established."
+        },
+        "q8": {
+          "label": "Impact and first three actions",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "An unauthenticated external party now holds a valid interactive session as alice. First: block 203.0.113.66 at the firewall, disable/rotate alice's credential and revoke sessions, preserve the host for forensics before rebuilding.",
+          "review_prompt": "Does your answer state the impact on confidentiality/integrity AND three concrete containment actions?"
+        },
+        "q9": {
+          "label": "Final security finding",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "The account alice on web-01 was successfully compromised: five failed SSH authentications from 203.0.113.66 were followed 129 s later by an accepted password authentication, establishing an interactive session. The gap falls inside success_window_minutes: 10, so rule 2 fired critical.",
+          "review_prompt": "Does your finding state the compromise, the evidence, the window and the impact?"
+        }
+      }
+    },
+    "scenario-3": {
+      "title": "Suspicious Post-Login Process Execution",
+      "questions": {
+        "q1": {
+          "label": "Host, user and source IP",
+          "required": true,
+          "parts": [
+            {
+              "label": "host app-01",
+              "accept": [
+                "app-01"
+              ],
+              "hint": "Only one of the two post-login alerts is on a Windows host - check the host field."
+            },
+            {
+              "label": "the account involved",
+              "accept": [
+                "jdoe",
+                "corp\\jdoe",
+                "corp/jdoe"
+              ],
+              "hint": "The alert's user field. The raw event may show the same account in a longer Windows form."
+            },
+            {
+              "label": "source IP",
+              "accept": [
+                "198.51.100.25"
+              ],
+              "hint": "The src_ip field of the app-01 alert."
+            }
+          ],
+          "solution": "host app-01, user jdoe (alert) / CORP\\jdoe (event), source IP 198.51.100.25"
+        },
+        "q2": {
+          "label": "Logon and process timestamps",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "Logon then process creation 20 s later. Absolute times shift every session, so they are not graded.",
+          "review_prompt": "Give both @timestamp values, the logon event first."
+        },
+        "q3": {
+          "label": "Gap and the rule window",
+          "required": true,
+          "parts": [
+            {
+              "label": "elapsed time between the two events",
+              "accept": [
+                "20"
+              ],
+              "patterns": [
+                "\\b20\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\b0:20\\b"
+              ],
+              "hint": "Subtract the logon @timestamp from the process_create @timestamp."
+            },
+            {
+              "label": "the rule's post-login window",
+              "accept": [
+                "2"
+              ],
+              "patterns": [
+                "\\btime[_\\s-]?after[_\\s-]?login[_\\s-]?minutes\\b",
+                "\\b2\\s*(?:min|mins|minute|minutes)\\b",
+                "\\b120\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\btwo\\s*minutes\\b"
+              ],
+              "hint": "The window is rules.suspicious_exec.time_after_login_minutes in config/app-config.yaml."
+            }
+          ],
+          "solution": "20 seconds apart, inside time_after_login_minutes: 2 (120 s)"
+        },
+        "q4": {
+          "label": "Process, path and command line",
+          "required": true,
+          "parts": [
+            {
+              "label": "the process name",
+              "accept": [
+                "cmd.exe",
+                "cmd"
+              ],
+              "hint": "The process.name field on the process_create event."
+            },
+            {
+              "label": "the first command in the chain",
+              "accept": [
+                "whoami"
+              ],
+              "hint": "Read process.command_line in full - it is a chained command, not a single one."
+            },
+            {
+              "label": "the second command in the chain",
+              "accept": [
+                "net user administrator",
+                "net user",
+                "administrator"
+              ],
+              "patterns": [
+                "\\bnet\\s+user\\b",
+                "\\badministrator\\b",
+                "\\bactive:yes\\b",
+                "\\b/active"
+              ],
+              "hint": "The second half of the chained command line."
+            }
+          ],
+          "solution": "cmd.exe, path C:\\Windows\\System32\\cmd.exe, command line: cmd.exe /c whoami && net user administrator /active:yes"
+        },
+        "q5": {
+          "label": "What the commands do",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "whoami prints the current identity and privilege level; net user administrator /active:yes re-enables the built-in administrator account so the actor has a known powerful credential. The && chains them: identify, then prepare persistence.",
+          "review_prompt": "Does your answer explain BOTH halves of the command and why the order matters?"
+        },
+        "q6": {
+          "label": "Parent process",
+          "required": true,
+          "parts": [
+            {
+              "label": "the parent process",
+              "accept": [
+                "winlogon.exe",
+                "winlogon"
+              ],
+              "hint": "The process.parent_name field on the process_create event. (PIDs are randomised every session, so give the name, not the number.)"
+            }
+          ],
+          "solution": "winlogon.exe creates the session at interactive logon, so this is a hands-on-keyboard shell, not a service or scheduled task. (PIDs are randomised each session and are not graded.)"
+        },
+        "q7": {
+          "label": "Which rule and why it fired",
+          "required": true,
+          "parts": [
+            {
+              "label": "rule name",
+              "accept": [
+                "suspicious_process_post_login"
+              ],
+              "hint": "rule_name on the app-01 alert."
+            },
+            {
+              "label": "why the process qualifies",
+              "accept": [
+                "suspicious_processes",
+                "suspicious",
+                "cmd.exe"
+              ],
+              "patterns": [
+                "\\bsuspicious[_\\s-]?processes\\b",
+                "\\bsuspicious\\b",
+                "\\bnot\\b",
+                "\\ballow"
+              ],
+              "hint": "Open config/app-config.yaml for this rule. It keeps one list of process names it treats as risky and a separate list it treats as normal. Work out which list your process is on."
+            }
+          ],
+          "solution": "suspicious_process_post_login: a logon_success then, within time_after_login_minutes, a process on the same host that is in suspicious_processes and not in expected_processes. cmd.exe qualifies."
+        },
+        "q8": {
+          "label": "Relationship to the scenario 1 incident",
+          "required": true,
+          "parts": [
+            {
+              "label": "answer is no / separate incident",
+              "accept": [],
+              "patterns": [
+                "\\bno\\b",
+                "\\bnot\\b",
+                "\\bnone\\b",
+                "\\bseparate\\b",
+                "\\bdifferent\\b",
+                "\\bunrelated\\b",
+                "\\bno relation\\b"
+              ],
+              "hint": "Compare host, user and source IP between this alert and the scenario 1 alert."
+            }
+          ],
+          "solution": "No - separate incident. Different host (app-01 vs web-01), different user (jdoe vs root/alice), different source IP, and nothing in the data links them."
+        },
+        "q9": {
+          "label": "Final security finding",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "Immediately after authenticating to app-01 from 198.51.100.25, CORP\\jdoe spawned cmd.exe 20 s later running whoami and net user administrator /active:yes, identifying its privilege level and re-enabling the dormant built-in administrator account.",
+          "review_prompt": "Does your finding name the user, host, source, gap, command and why it is malicious?"
+        }
+      }
+    },
+    "scenario-4": {
+      "title": "Linux Privilege Escalation and Reverse Shell",
+      "questions": {
+        "q1": {
+          "label": "Host, user and source IP",
+          "required": true,
+          "parts": [
+            {
+              "label": "host web-01",
+              "accept": [
+                "web-01"
+              ],
+              "hint": "The other post-login alert is on app-01 - this one is on the Linux web server."
+            },
+            {
+              "label": "user deploy",
+              "accept": [
+                "deploy"
+              ],
+              "hint": "The user field on the web-01 post-login alert."
+            },
+            {
+              "label": "source IP",
+              "accept": [
+                "198.51.100.77"
+              ],
+              "hint": "The src_ip field of that alert."
+            }
+          ],
+          "solution": "host web-01, user deploy, source IP 198.51.100.77"
+        },
+        "q2": {
+          "label": "Logon and sudo timestamps",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "SSH logon then the sudo command 45 s later. Absolute times shift every session, so they are not graded.",
+          "review_prompt": "Give both @timestamp values, the logon event first."
+        },
+        "q3": {
+          "label": "Elapsed gap",
+          "required": true,
+          "parts": [
+            {
+              "label": "elapsed time between logon and sudo",
+              "accept": [
+                "45"
+              ],
+              "patterns": [
+                "\\b45\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\b0:45\\b"
+              ],
+              "hint": "Subtract the logon @timestamp from the privilege_escalation @timestamp."
+            }
+          ],
+          "solution": "45 seconds between the SSH logon and the sudo command"
+        },
+        "q4": {
+          "label": "The sudo command line",
+          "required": true,
+          "parts": [
+            {
+              "label": "interactive shell requested",
+              "accept": [
+                "/bin/bash -i",
+                "bash -i",
+                "-i"
+              ],
+              "patterns": [
+                "\\bbash\\s+-i\\b",
+                "\\b/bin/bash\\b",
+                "\\binteractive\\b"
+              ],
+              "hint": "Read the COMMAND= field of the sudo line in the raw_event."
+            },
+            {
+              "label": "escalation target is root",
+              "accept": [
+                "root",
+                "user=root"
+              ],
+              "hint": "The USER= field in the same sudo line."
+            }
+          ],
+          "solution": "sudo: deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash -i"
+        },
+        "q5": {
+          "label": "What the escalation achieves",
+          "required": true,
+          "parts": [
+            {
+              "label": "deploy became root",
+              "accept": [
+                "root"
+              ],
+              "hint": "Compare the user on the logon event with the USER= field of the sudo line."
+            }
+          ],
+          "solution": "deploy -> root, i.e. full administrative privilege on web-01"
+        },
+        "q6": {
+          "label": "Why an interactive shell is dangerous",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "-i makes the shell interactive, so it presents a prompt and reads commands from the attacker. Over an established SSH session this is the standard way to retain interactive control and survive a dropped connection - the classic reverse-shell pattern.",
+          "review_prompt": "Does your answer explain what -i changes and why a service restart never needs it?"
+        },
+        "q7": {
+          "label": "The benign sudo comparison",
+          "required": true,
+          "parts": [
+            {
+              "label": "who ran the routine sudo commands",
+              "accept": [
+                "carol"
+              ],
+              "hint": "Filter privilege_escalation events on the same host and look for the lower-severity ones."
+            },
+            {
+              "label": "the first routine command",
+              "accept": [
+                "systemctl restart nginx",
+                "systemctl",
+                "nginx"
+              ],
+              "patterns": [
+                "\\bsystemctl\\b",
+                "\\bnginx\\b"
+              ],
+              "hint": "Read process.command_line on the medium-severity events."
+            },
+            {
+              "label": "the second routine command",
+              "accept": [
+                "apt-get",
+                "apt get"
+              ],
+              "patterns": [
+                "\\bapt[-\\s]?get\\b",
+                "\\bapt\\b"
+              ],
+              "hint": "The other medium-severity command line on the same host."
+            }
+          ],
+          "solution": "carol ran /usr/bin/systemctl restart nginx and /usr/bin/apt-get update, both recorded as privilege_escalation with severity medium."
+        },
+        "q8": {
+          "label": "Fields that distinguish benign from malicious sudo",
+          "required": true,
+          "parts": [
+            {
+              "label": "the field holding the full command text",
+              "accept": [
+                "process.command_line",
+                "command_line",
+                "command line",
+                "commandline"
+              ],
+              "patterns": [
+                "\\bcommand[_\\s.]?line\\b"
+              ],
+              "hint": "Look at the SIEM schema table on the How to Investigate page for the field that stores the complete command, not just the process name."
+            },
+            {
+              "label": "the field recording how serious the event is",
+              "accept": [
+                "severity"
+              ],
+              "hint": "Both sudo events have the same event_type. Something else tells you one was routine and one was not - find the field that ranks it."
+            },
+            {
+              "label": "the field holding the original log line",
+              "accept": [
+                "raw_event",
+                "raw event"
+              ],
+              "patterns": [
+                "\\braw[_\\s-]?event\\b",
+                "\\btty=",
+                "\\bcommand="
+              ],
+              "hint": "One field preserves the untouched source line, including the session and command markers. Use it to tell the two apart."
+            }
+          ],
+          "solution": "process.command_line (interactive shell vs administrative command), severity (high vs medium), and raw_event (the TTY=pts/0 / COMMAND= content)."
+        },
+        "q9": {
+          "label": "Final security finding",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "The deployment account deploy escalated to root on web-01, 45 s after authenticating from 198.51.100.77, requesting an interactive shell (/bin/bash -i). Unlike carol's routine systemctl and apt-get sudo activity on the same host, an interactive root shell grants complete control of the production web server.",
+          "review_prompt": "Does your finding contrast the malicious sudo with the benign sudo on the same host?"
+        }
+      }
+    },
+    "scenario-5": {
+      "title": "Multi-Event SOC Investigation",
+      "questions": {
+        "q1": {
+          "label": "Alert counts by severity and rule",
+          "required": true,
+          "parts": [
+            {
+              "label": "total alerts",
+              "accept": [
+                "4"
+              ],
+              "patterns": [
+                "\\b4\\b",
+                "\\bfour\\b"
+              ],
+              "hint": "The SOC Triage Board's severity panel totals the alerts in range."
+            },
+            {
+              "label": "how many are high severity",
+              "accept": [
+                "3"
+              ],
+              "patterns": [
+                "\\b3\\b",
+                "\\bthree\\b"
+              ],
+              "hint": "Count the high-severity buckets."
+            },
+            {
+              "label": "how many are critical",
+              "accept": [
+                "1"
+              ],
+              "patterns": [
+                "\\b1\\b",
+                "\\bone\\b",
+                "\\bsingle\\b"
+              ],
+              "hint": "The critical bucket should hold exactly one alert."
+            },
+            {
+              "label": "how many came from the post-login rule",
+              "accept": [
+                "2"
+              ],
+              "patterns": [
+                "\\b2\\b",
+                "\\btwo\\b"
+              ],
+              "hint": "Group the alerts by rule_name, not just by severity."
+            }
+          ],
+          "solution": "4 alerts: 3 high (brute_force x1, suspicious_process_post_login x2) and 1 critical (successful_brute_force x1)"
+        },
+        "q2": {
+          "label": "The four alerts",
+          "required": true,
+          "parts": [
+            {
+              "label": "the first alert, in time order",
+              "accept": [
+                "brute_force",
+                "203.0.113.45"
+              ],
+              "hint": "Open the SOC Triage Board, sort by time, and give each alert's rule, source IP, host and account from earliest to latest."
+            },
+            {
+              "label": "the second alert, in time order",
+              "accept": [
+                "successful_brute_force",
+                "203.0.113.66"
+              ],
+              "hint": "Continue the same ordering from the first alert you described."
+            },
+            {
+              "label": "the third alert, in time order",
+              "accept": [
+                "suspicious_process_post_login",
+                "198.51.100.25"
+              ],
+              "hint": "Continue the same ordering from the alert before it."
+            },
+            {
+              "label": "the fourth alert, in time order",
+              "accept": [
+                "suspicious_process_post_login",
+                "198.51.100.77"
+              ],
+              "hint": "Continue the same ordering from the alert before it."
+            }
+          ],
+          "solution": "A brute_force 203.0.113.45/root/web-01; B successful_brute_force 203.0.113.66/alice/web-01; C suspicious_process_post_login 198.51.100.25/jdoe/app-01; D suspicious_process_post_login 198.51.100.77/deploy/web-01"
+        },
+        "q3": {
+          "label": "Distinct alerting source IPs",
+          "required": true,
+          "parts": [
+            {
+              "label": "how many distinct source IPs",
+              "accept": [
+                "4"
+              ],
+              "patterns": [
+                "\\b4\\b",
+                "\\bfour\\b"
+              ],
+              "hint": "The dashboard's Top Source IPs panel gives you this directly."
+            },
+            {
+              "label": "first alerting source IP",
+              "accept": [
+                "203.0.113.45"
+              ],
+              "hint": "The dashboard's Top Source IPs panel lists them; pair each with the host it targeted."
+            },
+            {
+              "label": "second alerting source IP",
+              "accept": [
+                "203.0.113.66"
+              ],
+              "hint": "Two of the four targeted the same web server from different addresses."
+            },
+            {
+              "label": "the other two alerting source IPs",
+              "accept": [
+                "198.51.100.25",
+                "198.51.100.77"
+              ],
+              "hint": "The remaining two each map to a single different host."
+            }
+          ],
+          "solution": "4 source IPs: 203.0.113.45 -> web-01, 203.0.113.66 -> web-01, 198.51.100.25 -> app-01, 198.51.100.77 -> web-01"
+        },
+        "q4": {
+          "label": "Overall incident span",
+          "required": true,
+          "parts": [
+            {
+              "label": "total elapsed span of the incident",
+              "accept": [
+                "146"
+              ],
+              "patterns": [
+                "\\b146\\s*(?:s|sec|secs|second|seconds)?\\b",
+                "\\b2\\s*(?:min|mins|minute|minutes)\\s*26\\b",
+                "\\b2:26\\b",
+                "\\b146\\b"
+              ],
+              "hint": "Take the earliest event in the incident and the latest, and give the elapsed time in seconds. The last event is a firewall record, not a host log."
+            }
+          ],
+          "solution": "First attacker event to the final firewall block: about 2 min 26 s (146 s). Absolute times shift each session."
+        },
+        "q5": {
+          "label": "One incident or two on web-01",
+          "required": true,
+          "parts": [
+            {
+              "label": "answer is separate / concurrent",
+              "accept": [],
+              "patterns": [
+                "\\bseparate\\b",
+                "\\bdistinct\\b",
+                "\\bdifferent\\b",
+                "\\bno\\b",
+                "\\bnot\\b",
+                "\\btwo\\b",
+                "\\bconcurrent\\b",
+                "\\bparallel\\b"
+              ],
+              "hint": "Compare the two web-01 alerts: different source IPs, rules, accounts and timing."
+            }
+          ],
+          "solution": "Separate. Two alerts on web-01 from different source IPs, rules and accounts, running in parallel. One attacker could have run both, but nothing in the data links them."
+        },
+        "q6": {
+          "label": "Most serious alert",
+          "required": true,
+          "parts": [
+            {
+              "label": "which rule represents achieved access",
+              "accept": [
+                "successful_brute_force"
+              ],
+              "hint": "Ask which alert shows the attacker actually getting in, rather than only trying."
+            },
+            {
+              "label": "its source IP",
+              "accept": [
+                "203.0.113.66"
+              ],
+              "hint": "Read src_ip on that alert."
+            },
+            {
+              "label": "its account",
+              "accept": [
+                "alice"
+              ],
+              "hint": "Read user on that alert - a valid session exists for it."
+            }
+          ],
+          "solution": "successful_brute_force, critical, 203.0.113.66 - the only alert representing achieved access (a valid SSH session for alice)."
+        },
+        "q7": {
+          "label": "What the firewall adds",
+          "required": true,
+          "parts": [
+            {
+              "label": "which host holds the firewall records",
+              "accept": [
+                "fw-01"
+              ],
+              "hint": "Which host holds the network_connection events?"
+            },
+            {
+              "label": "the blocked destination and port",
+              "accept": [
+                "10.0.0.10",
+                "22"
+              ],
+              "patterns": [
+                "\\b22\\b",
+                "\\bssh\\b"
+              ],
+              "hint": "Read dst_ip and port on the blocked firewall records."
+            },
+            {
+              "label": "how many were blocked",
+              "accept": [
+                "3"
+              ],
+              "patterns": [
+                "\\b3\\b",
+                "\\bthree\\b",
+                "\\bblock"
+              ],
+              "hint": "Count the blocked records coming from the attacker address."
+            }
+          ],
+          "solution": "fw-01 shows 3 UFW BLOCK records from 203.0.113.45 to 10.0.0.10 port 22, confirming the attack came from the perimeter - no single host log proves that."
+        },
+        "q8": {
+          "label": "The two non-alerting conditions",
+          "required": true,
+          "parts": [
+            {
+              "label": "the first non-alerting condition",
+              "accept": [
+                "svc_backup",
+                "4"
+              ],
+              "patterns": [
+                "\\b4\\b",
+                "\\bfour\\b"
+              ],
+              "hint": "An account on the same web server failed a few times and then succeeded, staying under the rule's configured count threshold."
+            },
+            {
+              "label": "the second non-alerting condition",
+              "accept": [
+                "app-02",
+                "powershell",
+                "30"
+              ],
+              "patterns": [
+                "\\bpowershell\\b",
+                "\\b30\\s*(?:min|mins|minute|minutes)?\\b"
+              ],
+              "hint": "A script ran on a different Windows host, but far outside the rule's post-login window. Compare the process time with that host's logon time."
+            }
+          ],
+          "solution": "(a) svc_backup on web-01: 4 failures then a success, below min_failures: 5. (b) CORP\\administrator on app-02: powershell.exe Inventory.ps1 30 minutes after logon, outside time_after_login_minutes: 2."
+        },
+        "q9": {
+          "label": "What normal baseline activity looks like",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "Routine internal SSH from 10.0.0.21-10.0.0.23 (alice, bob, carol) on web-01, a handful of successes and failures spread hours apart rather than seconds apart, plus carol's two benign sudo commands. It is normal because the failures never cluster to the threshold, the sources are internal, and the cadence is hours rather than seconds.",
+          "review_prompt": "Does your answer describe the internal baseline AND state why it does not meet the thresholds? (Absolute counts of baseline successes/failures are not graded because they are not uniform across sessions.)"
+        },
+        "q10": {
+          "label": "SOC handover summary",
+          "required": false,
+          "self_review": true,
+          "parts": [],
+          "solution": "A coordinated burst hit the estate between the first attacker event and the last firewall block. Two external addresses brute-forced SSH on web-01; 203.0.113.66 succeeded and obtained an interactive session as alice - confirmed compromise, critical. Simultaneously two accounts showed post-login hands-on-keyboard activity on app-01 and web-01. Block both external addresses, disable alice, and preserve app-01 and web-01 for forensics.",
+          "review_prompt": "Does your handover state the timeline, the confirmed compromise, the parallel activity and the recommended next actions?"
+        }
+      }
+    }
+  }
+}

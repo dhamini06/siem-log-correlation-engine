@@ -8,24 +8,44 @@ the SIEM engine.
 
 Then open http://localhost:8080
 
+Two POST endpoints back the student answer checker. Both run on the server, so
+the answer key never reaches the browser:
+
+    POST /api/check    {"scenario": "...", "answers": {"q1": "..."}}
+        -> per-question verdict and, for anything unmatched, a hint.
+
+    POST /api/reveal   {"scenario": "...", "question": "q1"}
+        -> the model solution for one question, marked as assisted.
+
+The key itself lives in ``docs/answer-key.json``, outside the directory served
+here, and is read only by ``scripts/answer_grader.py``.
+
 For a production-style deployment on Ubuntu, put the `training/` directory
-behind nginx or any static web server instead; no application changes needed.
+behind nginx or any static web server instead. Note that a purely static
+deployment has no answer checking: route /api to this script, or validate
+answers offline with the instructor guide.
 """
 
 import argparse
 import functools
 import http.server
+import json
 import os
 import socket
 import socketserver
 import sys
 import webbrowser
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import answer_grader  # noqa: E402
+
 TRAINING_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "training")
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 
 DIRECTORY_INDEX = "index.html"
+API_PREFIX = "/api/"
 
 # Magic-byte signatures. Brand assets are sometimes supplied with an extension
 # that does not match the real format (the BlueCloud logo is a JPEG named .png),
@@ -39,7 +59,10 @@ IMAGE_SIGNATURES = (
 
 
 class LabRequestHandler(http.server.SimpleHTTPRequestHandler):
-    """Static file handler that serves index.html for directory paths."""
+    """Static file handler that serves index.html for directory paths.
+
+    Also implements the two JSON endpoints used by the answer checker.
+    """
 
     def send_head(self):
         path = self.translate_path(self.path)
@@ -72,6 +95,68 @@ class LabRequestHandler(http.server.SimpleHTTPRequestHandler):
         if b"<svg" in head:
             return "image/svg+xml"
         return super().guess_type(path)
+
+    # ----------------------------------------------------------- answer API
+    def _send_json(self, payload: dict, status: int = 200) -> None:
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _read_json(self):
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0:
+            return {}
+        if length > answer_grader.MAX_PAYLOAD_BYTES:
+            raise answer_grader.GradingError("request body too large")
+        raw = self.rfile.read(length)
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise answer_grader.GradingError(f"invalid JSON body: {exc}") from exc
+        if not isinstance(data, dict):
+            raise answer_grader.GradingError("body must be a JSON object")
+        return data
+
+    def do_POST(self):
+        if not self.path.startswith(API_PREFIX):
+            self._send_json({"error": "not found"}, 404)
+            return
+        endpoint = self.path[len(API_PREFIX):].split("?", 1)[0].strip("/")
+        try:
+            data = self._read_json()
+            if endpoint == "check":
+                scenario = data.get("scenario") or ""
+                answers = data.get("answers") or {}
+                if not isinstance(answers, dict):
+                    raise answer_grader.GradingError("answers must be an object")
+                reveal_solution = data.get("reveal") is True
+                result = answer_grader.grade(
+                    scenario, answers, reveal_solution=reveal_solution
+                )
+            elif endpoint == "reveal":
+                result = answer_grader.reveal(
+                    data.get("scenario") or "", data.get("question") or ""
+                )
+            else:
+                self._send_json({"error": f"unknown endpoint {endpoint!r}"}, 404)
+                return
+        except answer_grader.GradingError as exc:
+            self._send_json({"error": str(exc)}, 400)
+            return
+        except Exception as exc:  # never leak a traceback to a student's browser
+            print(f"answer API error: {exc}", file=sys.stderr)
+            self._send_json({"error": "grading failed"}, 500)
+            return
+        self._send_json(result)
 
     def log_message(self, fmt, *args):
         if "--verbose" in sys.argv:

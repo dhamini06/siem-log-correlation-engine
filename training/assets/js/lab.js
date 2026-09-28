@@ -98,7 +98,7 @@
   }
 
   /* ----------------------------------------- landing page progress ring */
-  function initProgressSummary() {
+  function paintProgressSummary() {
     var el = document.getElementById("progress-summary");
     if (!el) return;
     var state = loadState();
@@ -108,7 +108,16 @@
       return done[key];
     }).length;
     el.textContent = count + " / " + total + " scenarios completed";
+    el.classList.toggle("chip-ok", count > 0);
   }
+
+  function initProgressSummary() {
+    paintProgressSummary();
+  }
+
+  /* Lets the answer checker refresh the counter the moment a scenario is
+     completed, without reloading the page. */
+  window.refreshLabProgress = paintProgressSummary;
 
   /* --------------------------------------------------------- nav state */
   function initNav() {

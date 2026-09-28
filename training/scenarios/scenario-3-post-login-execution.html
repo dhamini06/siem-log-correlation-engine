@@ -92,6 +92,10 @@
         <li><strong>Check the parent process</strong>The <code>parent_name</code> field tells you how the shell was launched.</li>
         <li><strong>State the finding</strong>What does this sequence indicate about the account's intent?</li>
       </ol>
+      <p class="linkrow" style="margin-top:1rem">
+        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
+        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
+      </p>
     </div>
   </section>
 
@@ -101,55 +105,92 @@
       <h2>Answer every question</h2>
     </div>
 
+    <p class="saved-note" id="saved-note">Saved in this browser only.</p>
     <ol class="qlist">
-      <li>
-        <strong>Which host and which user account are involved, and from which source IP did the login come?</strong>
+      <li data-question-row="q1">
+        <strong>Which host and which user account are involved, and from which source IP did the login come?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q1" placeholder="Host, user, src_ip"></textarea></div>
-        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What was the exact timestamp of the successful logon, and of the suspicious process creation?</strong>
+      <li data-question-row="q2">
+        <strong>What was the exact timestamp of the successful logon, and of the suspicious process creation?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q2" placeholder="Both timestamps"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q2">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>How many seconds elapsed between the logon and the process creation? What is the rule's configured window?</strong>
+      <li data-question-row="q3">
+        <strong>How many seconds elapsed between the logon and the process creation? What is the rule's configured window?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q3" placeholder="Elapsed seconds + window"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What process was created, and what was its full command line?</strong>
+      <li data-question-row="q4">
+        <strong>What process was created, and what was its full command line?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q4" placeholder="Process name + full command line"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Break the command line into its separate operations. What is each part trying to do?</strong>
+      <li data-question-row="q5">
+        <strong>Break the command line into its separate operations. What is each part trying to do?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q5" placeholder="Operation by operation"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q5">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Which parent process launched the shell, and what does that indicate about the session type?</strong>
+      <li data-question-row="q6">
+        <strong>Which parent process launched the shell, and what does that indicate about the session type?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q6" placeholder="parent_name + interpretation"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Why does the SIEM treat this as suspicious? Name the rule and the two conditions it checks.</strong>
+      <li data-question-row="q7">
+        <strong>Why does the SIEM treat this as suspicious? Name the rule and the two conditions it checks.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q7" placeholder="Rule + conditions"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Are the two events on this host related to the brute force activity in Scenarios 01 and 02? How do you know?</strong>
+      <li data-question-row="q8">
+        <strong>Are the two events on this host related to the brute force activity in Scenarios 01 and 02? How do you know?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q8" placeholder="Correlation or independence, with reasons"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>State the final security finding and the recommended immediate response.</strong>
+      <li data-question-row="q9">
+        <strong>State the final security finding and the recommended immediate response.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q9" placeholder="Finding + response"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
       </li>
     </ol>
 
-    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
-      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+    <div class="check-actions">
+      <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
+      <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
       <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
-      <a class="btn btn-blue" href="scenario-4-linux-privilege-escalation.html">Next scenario</a>
       <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+      <a class="btn btn-blue" href="scenario-4-linux-privilege-escalation.html">Next scenario</a>
+      <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
     </div>
+    <p class="check-gate-note" id="check-gate-note"><strong>Mark scenario complete</strong> unlocks once every checkable answer is correct. Use <strong>Check answers</strong> to find out where you are.</p>
+    <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
     <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
-      <span class="callout-title">Scenario marked complete</span>
-      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+      <span class="callout-title">Scenario completed</span>
+      <p class="mb0">Every checkable answer was correct and your progress is saved in this browser. Move on to the next scenario, or revisit any hint you opened.</p>
     </div>
   </section>
 
@@ -276,6 +317,7 @@
 </footer>
 
 <script src="../assets/js/lab.js"></script>
+<script src="../assets/js/lab-check.js"></script>
 <script>
   (function () {
     var ES = "http://localhost:9200";

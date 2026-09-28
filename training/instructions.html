@@ -217,9 +217,33 @@
   <div class="wrap narrow">
     <div class="section-head">
       <span class="kicker">Step 4</span>
-      <h2>Ready to start?</h2>
-      <p>Open a scenario, work every question, then mark it complete. Your answers stay in this browser so you can come back to them.</p>
+      <h2>Working a scenario, end to end</h2>
+      <p>Your answers stay in this browser, so you can leave a scenario half-finished and come
+      back to it. The lab checks what it can check for you.</p>
     </div>
+
+    <ol class="steps">
+      <li><strong>Read the brief</strong>The incident, the objective, and what you already know.</li>
+      <li><strong>Investigate in Kibana</strong>Find the alert on the SOC Triage Board, then pull
+      its evidence with <code>evidence_event_ids</code>.</li>
+      <li><strong>Fill in every answer box</strong>Type what you found, with the evidence that proves it.</li>
+      <li><strong>Choose Check answers</strong>The lab grades every fact it can verify, marks each
+      question <em>Correct</em>, <em>Partially correct</em> or <em>Needs work</em>, and for anything
+      unmatched shows which part of the question missed and a hint. It never shows you the answer.</li>
+      <li><strong>Fix and retry</strong>Correct what the hints point at and check again, as often as you like.</li>
+      <li><strong>Review your written answers</strong>The interpretation and finding questions are
+      graded by you, not the lab. Tick the box beside each one once you are happy with it.</li>
+      <li><strong>Mark the scenario complete</strong>This unlocks only once every checkable answer
+      is correct.</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-title">If you are completely stuck</span>
+      <p>Each question has a <em>Show solution</em> link. It gives you the model answer and marks
+      the scenario as assisted, so use it as a last resort &mdash; and mention it when you hand your
+      work in.</p>
+    </div>
+
     <p>
       <a class="btn btn-primary" href="scenarios/scenario-1-brute-force.html">Scenario 1 &mdash; Brute Force Investigation</a>
       <a class="btn btn-outline" href="index.html#scenarios">All scenarios</a>

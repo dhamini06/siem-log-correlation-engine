@@ -9,6 +9,25 @@ now, so you can re-verify at any time.
 
 ---
 
+## 0. Student answer checking (instructor notes)
+
+The platform checks student answers automatically. This guide remains the authoritative
+source of truth; \docs/answer-key.json\ is its machine-readable form and must be kept in step
+with it.
+
+| Aspect | Behaviour |
+|---|---|
+| Where grading runs | Server-side, in \scripts/answer_grader.py\. The key is never sent to the browser. |
+| What a student sees | Per question: Correct, Partially correct, or Needs work. For anything unmatched: the name of the part and a hint. Never the answer. |
+| Show solution | Available per question. Returns the model answer and marks the scenario **assisted**. Mention it when collecting work. |
+| Completion | Unlocks only when every machine-checked question is correct. |
+| Self-reviewed questions | Interpretation and finding questions carry a checkbox and a review prompt; they are not machine-graded. |
+| Not graded | Absolute UTC timestamps and PIDs, because the sample generator re-bases them every session. |
+
+**Marking guidance.** A scenario reported as complete means every *checkable* fact was right. The
+written answers are still yours to assess — that is what the self-review checkboxes and the
+per-scenario notes below are for.
+
 ## 1. Lab at a glance
 
 | Item | Value |

@@ -161,6 +161,82 @@ Both correctly produce no alert, and Scenario 5 requires students to explain why
 **Do not re-run `correlate` mid-session.** Deduplication will suppress the existing alerts and the
 board will look empty. If you must, delete `data\dedup-cache.json` first.
 
+## 8a. Answer checking
+
+The platform grades student answers **server-side**, so the key never reaches the browser.
+
+| Piece | Location | Reachable by a student? |
+|---|---|---|
+| `docs/answer-key.json` | machine-readable form of the instructor answer key | **No** — outside the `training/` root |
+| `scripts/answer_grader.py` | the grading logic | **No** — imported only by the server |
+| `POST /api/check` | verdict plus hints for a submission | yes, this is the endpoint |
+| `POST /api/reveal` | model solution for one question, on request | yes, only when asked |
+| `training/assets/js/lab-check.js` | the student-facing workflow | yes — contains no answers |
+
+`scripts/serve_training.py` grew a `do_POST` handler for those two endpoints. It still uses only
+the Python standard library, and static serving is unchanged. Nothing was added to
+`requirements.txt` and there is no database.
+
+### What a submission returns
+
+```json
+{
+  "verdict": "in_progress",
+  "completed": false,
+  "summary": {"correct": 5, "partial": 1, "incorrect": 1, "self_review": 2,
+              "answered": 9, "required_total": 7, "required_correct": 5},
+  "questions": {
+    "q1": {"status": "correct", "required": true,
+           "parts": [{"label": "source IP", "ok": true},
+                     {"label": "target host", "ok": true}]}
+  }
+}
+```
+
+An unmatched part returns a `hint` and **never** the accepted value. The `solution` string is
+omitted unless the student presses *Show solution*, which flags the scenario as assisted.
+
+### How grading works
+
+Answers are free text, so a part is satisfied by **containment after normalisation**, not exact
+equality. Normalisation folds case, unifies the dashes and quotes people actually type, collapses
+whitespace, and treats `_`, `-`, `.` and spaces as interchangeable inside identifiers — so
+`brute_force`, `brute force` and `Brute-Force` all match. Short numeric tokens respect word
+boundaries, so a required `5` is not satisfied by `15`.
+
+Two guards stop it being too loose:
+
+- **Refusals are not attempts.** `"no idea"`, `"idk"`, `"?"`, `"n/a"` and similar count as
+  unanswered. Without this, `"no idea"` would pass a yes/no question, because `"no"` is the
+  expected negative answer.
+- **Hints never contain answers.** `tests/test_answer_validation.py` asserts that no label or hint
+  states a value the scenario page does not already display, and that no hint echoes the solution.
+
+Adjust what is graded by editing `docs/answer-key.json` — no code change needed. Each question
+carries `required: true` for machine-checked parts and `required: false` for self-reviewed ones.
+
+### What is deliberately not graded
+
+Excluded because the sample generator re-bases them on every session, so grading them would mark
+correct students wrong:
+
+- absolute UTC timestamps
+- PIDs (the `winlogon.exe` parent PID differs on each run)
+- the interpretation and "final finding" questions, which are self-reviewed with a checkbox
+
+Completion therefore requires every machine-checked question to be correct. The self-reviewed
+questions carry their own checkbox and a review prompt.
+
+### Serving statically instead
+
+A purely static deployment (nginx serving `training/`) has no answer checking; the pages detect
+this and point the student at `scripts/serve_training.py`. To keep checking behind nginx, route
+`/api/` to this script and serve everything else as static files.
+
+The instructor key itself is in `docs/INSTRUCTOR_GUIDE.md` and must never be copied into
+`training/`. `tests/test_answer_validation.py` fails the build if it is.
+
+
 ## 9. Verifying before class
 
 ```powershell

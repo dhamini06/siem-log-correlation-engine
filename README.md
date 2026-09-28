@@ -63,6 +63,7 @@ challenge a detection rather than trust it.
 | **Evidence drill-down** | Every alert stores `evidence_event_ids`; each ID resolves to the exact normalized event, including its original `raw_event` |
 | **SOC Triage Board** | Generated (not hand-edited) Kibana saved objects with a `--check` validator that prevents the "Could not find the data view" regression |
 | **Training platform** | Static HTML/CSS/JS + Python stdlib server. No backend, no database, no build step, no network calls at runtime |
+| **Student answer checking** | Graded **server-side**; the instructor key never reaches the browser. Per-question verdict, targeted hints, unlimited retry, and a completion gate |
 | **Five scenarios** | Each one is bound to real data and verified against the live cluster by an automated validator |
 | **Reproducible sessions** | A reset step guarantees every session starts from the same canonical dataset (50 events / 4 alerts) |
 | **Isolated test suite** | Runs entirely against an in-memory fake Elasticsearch — no Docker required |
@@ -446,15 +447,17 @@ python -m pytest tests --cov=src --cov-report=term-missing
 ```
 
 ```
-287 passed, 1 skipped
+396 passed, 1 skipped
 ```
 
 The suite runs entirely against an **in-memory fake Elasticsearch** — no Docker required, so it
 is safe to run anywhere. Coverage includes every parser (positive and negative), the schema and
 document IDs, config loading, the ES client, all three correlation rules against
 `tests/data/positive_cases.json` and `negative_cases.json`, deduplication, the engine, a full
-generate → ingest → correlate pipeline, the Kibana saved objects, and the training platform
-(pages, navigation, scenario wiring, answer-key leakage).
+generate → ingest → correlate pipeline, the Kibana saved objects, the training platform
+(pages, navigation, scenario wiring, answer-key leakage), and the student answer checker
+(grading, normalisation, refusal handling, the HTTP surface, and the guarantee that no answer
+reaches a student-facing asset).
 
 The scenarios are verified against **live** data by a separate command, which is what guarantees
 a scenario can never reference evidence that does not exist:
@@ -524,18 +527,29 @@ training/                         BlueCloud training platform (static, no build 
   scenarios/                      the five investigation scenarios
   assets/css/bluecloud.css        blue primary / orange accent theme
   assets/js/lab.js                nav, hints, local progress and notes
+  assets/js/lab-check.js          student answer-checking workflow (holds no answers)
   assets/img/bluecloud-logo.png   brand mark
 tests/                            unit + integration suites, rule case data, platform tests
 dashboards/
   soc-triage-board.ndjson         Kibana saved objects (generated)
 logs/samples/                     hand-inspectable reference fixture per log format
-docs/                             reference and instructor documentation (see below)
+docs/
+  answer-key.json                 machine-readable answer key (never served)
+  TRAINING_PLATFORM.md            how the student platform is run and deployed
+  INSTRUCTOR_GUIDE.md             instructor-only answer key and rubric
+  LOG_PARSER_REFERENCE.md         regex patterns, assumptions, example matches
+  RULE_LOGIC.md                   rule pseudocode, flowcharts, evidence semantics
+  CONFIGURATION_REFERENCE.md      every tunable parameter
+  FALSE_POSITIVE_TUNING.md        threshold tuning methodology
+  TROUBLESHOOTING.md              common issues and fixes
+  PHASE_CHECKLIST.md              go/no-go criteria + deployment readiness
 scripts/
   setup.ps1                       one-time bootstrap (venv, deps, Docker, templates)
   start_lab.ps1                   per-session starter
   reset_lab_data.py               clears regenerable lab data so a session is reproducible
+  serve_training.py               stdlib static server + the answer-check API
+  answer_grader.py                server-side grading (imported by serve_training.py)
   build_dashboard.py              generates + validates the Kibana saved objects
-  serve_training.py               stdlib static server for the training platform
   validate_scenarios.py           proves every scenario is backed by real data
 ```
 

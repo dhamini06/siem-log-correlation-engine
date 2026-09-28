@@ -92,6 +92,10 @@
         <li><strong>Explain the escalation</strong>Why does this alert read <code>critical</code> while the other reads <code>high</code>?</li>
         <li><strong>State the impact</strong>The attacker now has a valid session. What should the SOC do first?</li>
       </ol>
+      <p class="linkrow" style="margin-top:1rem">
+        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
+        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
+      </p>
     </div>
   </section>
 
@@ -101,55 +105,94 @@
       <h2>Answer every question</h2>
     </div>
 
+    <p class="saved-note" id="saved-note">Saved in this browser only.</p>
     <ol class="qlist">
-      <li>
-        <strong>Which alert escalated to critical? Give its rule name, source IP, host and target account.</strong>
+      <li data-question-row="q1">
+        <strong>Which alert escalated to critical? Give its rule name, source IP, host and target account.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q1" placeholder="Rule, src_ip, host, user"></textarea></div>
-        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>List the timestamps of every failed logon in this attack, in order.</strong>
+      <li data-question-row="q2">
+        <strong>List the timestamps of every failed logon in this attack, in order.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q2" placeholder="Ordered timestamps (UTC)"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q2">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>At what exact time did the successful login occur, and how many seconds passed between the first failure and that success?</strong>
+      <li data-question-row="q3">
+        <strong>At what exact time did the successful login occur, and how many seconds passed between the first failure and that success?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q3" placeholder="Success time + elapsed seconds"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>How many events are in the alert's evidence set, and what does that number consist of?</strong>
+      <li data-question-row="q4">
+        <strong>How many events are in the alert's evidence set, and what does that number consist of?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q4" placeholder="Count + composition"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>Why is this alert <code>critical</code> and not <code>high</code>? Name the rule and the condition that caused the escalation.</strong>
+      <li data-question-row="q5">
+        <strong>Why is this alert <code>critical</code> and not <code>high</code>? Name the rule and the condition that caused the escalation.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q5" placeholder="Escalation logic"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q5">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>How does this attack differ from the Scenario 01 brute force? Compare source IP, target account, outcome and severity.</strong>
+      <li data-question-row="q6">
+        <strong>How does this attack differ from the Scenario 01 brute force? Compare source IP, target account, outcome and severity.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q6" placeholder="Comparison"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What does the success event's <code>process</code> field tell you about how the session was established?</strong>
+      <li data-question-row="q7">
+        <strong>What does the success event's <code>process</code> field tell you about how the session was established?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q7" placeholder="Protocol / method evidence"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>What is the security impact of a successful brute force, and what are the first three containment actions you would take?</strong>
+      <li data-question-row="q8">
+        <strong>What is the security impact of a successful brute force, and what are the first three containment actions you would take?</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q8" placeholder="Impact + containment steps"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q8">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
       </li>
-      <li>
-        <strong>State the final security finding, including the evidence that proves the account was compromised rather than merely targeted.</strong>
+      <li data-question-row="q9">
+        <strong>State the final security finding, including the evidence that proves the account was compromised rather than merely targeted.</strong><span class="answer-status" hidden></span>
         <div class="answer-box"><textarea data-question="q9" placeholder="Your security finding"></textarea></div>
+        <ul class="answer-feedback"></ul>
+
+        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
+
+        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
       </li>
     </ol>
 
-    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
-      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+    <div class="check-actions">
+      <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
+      <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
       <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
-      <a class="btn btn-blue" href="scenario-3-post-login-execution.html">Next scenario</a>
       <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+      <a class="btn btn-blue" href="scenario-3-post-login-execution.html">Next scenario</a>
+      <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
     </div>
+    <p class="check-gate-note" id="check-gate-note"><strong>Mark scenario complete</strong> unlocks once every checkable answer is correct. Use <strong>Check answers</strong> to find out where you are.</p>
+    <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
     <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
-      <span class="callout-title">Scenario marked complete</span>
-      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+      <span class="callout-title">Scenario completed</span>
+      <p class="mb0">Every checkable answer was correct and your progress is saved in this browser. Move on to the next scenario, or revisit any hint you opened.</p>
     </div>
   </section>
 
@@ -266,6 +309,7 @@
 </footer>
 
 <script src="../assets/js/lab.js"></script>
+<script src="../assets/js/lab-check.js"></script>
 <script>
   (function () {
     var ES = "http://localhost:9200";
