@@ -599,9 +599,21 @@ This is a training lab running on `localhost`. It is **not** hardened.
 
 - `xpack.security.enabled=false` in `docker-compose.yml`, for lab convenience only. Elasticsearch
   and Kibana are unauthenticated.
-- The three `XPACK_*_ENCRYPTIONKEY` values in `docker-compose.yml` are fixed, non-secret
-  lab placeholders so Kibana can self-configure without an enrollment wizard. **They must be
-  replaced before any real deployment.**
+- Kibana's three `XPACK_*_ENCRYPTIONKEY` settings are read from the environment with clearly
+  labelled local-development fallbacks, so the lab starts with no `.env` and the repository
+  contains no key material:
+
+  ```yaml
+  XPACK_SECURITY_ENCRYPTIONKEY: ${SIEM_ENCRYPTION_KEY:-siem-lab-security-encryption-key-0001}
+  ```
+
+  The defaults are stable on purpose — Kibana regenerates random keys on every boot otherwise,
+  which invalidates sessions and encrypted saved objects. They are public placeholders, **not
+  secrets**, and are safe to read. A real deployment must set `SIEM_ENCRYPTION_KEY`,
+  `SIEM_ESO_ENCRYPTION_KEY`, and `SIEM_REPORTING_ENCRYPTION_KEY` to unique values from
+  `bin/kibana-encryption-keys`; anyone who knows the key can decrypt Kibana's saved objects.
+  Rotating them after Kibana has run invalidates the existing saved objects, so re-import the
+  dashboard with `python -m src.main import-dashboard`. See `.env.example`.
 - `.env` is git-ignored and only `.env.example` (placeholders) is committed. Certificates,
   keys, and `config/certs/` are ignored.
 - To harden, apply `docker-compose.prod.yml`, which enables X-Pack security and TLS for both

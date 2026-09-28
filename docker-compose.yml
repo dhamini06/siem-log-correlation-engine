@@ -49,10 +49,13 @@ services:
       - SERVER_HOST=0.0.0.0
       # Stable lab-only keys so sessions and encrypted saved objects survive restarts
       # (Kibana otherwise regenerates random keys on every boot).
-      # REPLACE with `bin/kibana-encryption-keys` output before any real deployment.
-      - XPACK_SECURITY_ENCRYPTIONKEY=siem-lab-security-encryption-key-0001
-      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=siem-lab-eso-encryption-key-0000001
-      - XPACK_REPORTING_ENCRYPTIONKEY=siem-lab-reporting-encryption-key-0001
+      # The defaults below are deliberately obvious placeholders so a clone of this
+      # repository never ships key material. They are NOT secrets and are safe to read.
+      # A real deployment must set these in the environment (see .env.example) to
+      # unique values from `bin/kibana-encryption-keys`; do not reuse the defaults.
+      - XPACK_SECURITY_ENCRYPTIONKEY=${SIEM_ENCRYPTION_KEY:-siem-lab-security-encryption-key-0001}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${SIEM_ESO_ENCRYPTION_KEY:-siem-lab-eso-encryption-key-0000001}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${SIEM_REPORTING_ENCRYPTION_KEY:-siem-lab-reporting-encryption-key-0001}
     volumes:
       - kibana-config:/usr/share/kibana/data
     mem_limit: 768m
