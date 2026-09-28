@@ -1,0 +1,49 @@
+{
+  "index_patterns": ["raw-events-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "30s"
+    },
+    "mappings": {
+      "dynamic": true,
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "text" },
+        "host": { "type": "keyword" },
+        "event": {
+          "properties": {
+            "code": { "type": "keyword" },
+            "provider": { "type": "keyword" },
+            "dataset": { "type": "keyword" },
+            "kind": { "type": "keyword" }
+          }
+        },
+        "winlog": {
+          "properties": {
+            "channel": { "type": "keyword" },
+            "event_id": { "type": "integer" },
+            "provider_name": { "type": "keyword" },
+            "computer_name": { "type": "keyword" },
+            "record_id": { "type": "keyword" }
+          }
+        },
+        "siem": {
+          "properties": {
+            "source_type": { "type": "keyword" },
+            "collector": { "type": "keyword" }
+          }
+        },
+        "agent": {
+          "properties": {
+            "type": { "type": "keyword" },
+            "hostname": { "type": "keyword" }
+          }
+        }
+      }
+    },
+    "aliases": {}
+  }
+}

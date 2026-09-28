@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario 04 - Linux Privilege Escalation and Reverse Shell | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="../assets/css/bluecloud.css">
+</head>
+<body data-page="scenario-4" data-scenario="scenario-4">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="../assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../instructions.html">How to Investigate</a>
+      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 04
+    </div>
+    <div class="hero-meta" style="margin:0 0 0.6rem">
+      <span class="chip chip-orange">Scenario 04</span>
+      <span class="diff diff-hard">Hard</span>
+      <span class="chip chip-blue">Event: privilege_escalation</span>
+      <span class="chip chip-blue">Rule: suspicious_process_post_login</span>
+    </div>
+    <h1>Linux Privilege Escalation &amp; Reverse Shell</h1>
+    <p class="sub">
+      A Linux account logged in over SSH, then used sudo to start an interactive root shell.
+      Separate it from the legitimate sudo activity on the same host.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap narrow">
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Incident Brief</span>
+      <h2>Objective and background</h2>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-title">Security objective</span>
+      <p>Establish that a low-privilege account escalated to root and launched an interactive
+      shell, and prove the activity is malicious by contrasting it with normal sudo usage
+      recorded on the same host.</p>
+    </div>
+
+    <div class="callout callout-crit">
+      <span class="callout-title">Incident story</span>
+      <p>
+        The web server has several accounts that legitimately use <code>sudo</code>, and the SOC
+        is used to seeing <code>privilege_escalation</code> events that are perfectly normal. A
+        deployment account was provisioned for automated releases. Last night a high-severity
+        alert fired on <code>web-01</code> and the operations team want to know whether it is a
+        genuine compromise or another false alarm. This is the hardest judgement call in the lab:
+        you must separate malicious sudo use from routine sudo use using evidence, not vibes.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>What you know at the start</h3>
+      <ul>
+        <li><code>sudo</code> use is logged as <code>event_type: "privilege_escalation"</code>.</li>
+        <li>The same host has other sudo events that are <em>not</em> suspicious.</li>
+        <li>Two alerts on the board share the <code>suspicious_process_post_login</code> rule; this one is on the Linux host.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent-orange" style="margin-top:1rem">
+      <h3>Investigation task</h3>
+      <ol class="steps">
+        <li><strong>Locate the alert</strong>It is the <code>suspicious_process_post_login</code> alert on <code>web-01</code>.</li>
+        <li><strong>Read the sudo record</strong>Every <code>privilege_escalation</code> event carries the full sudo invocation: TTY, working directory, target user and command.</li>
+        <li><strong>Identify the privilege change</strong>Which account escalated, and to which account?</li>
+        <li><strong>Judge the command</strong>Decide whether the requested command is administrative routine or an interactive shell.</li>
+        <li><strong>Compare with benign sudo</strong>Find the other sudo events on this host and explain precisely what makes them different.</li>
+        <li><strong>State the finding and the impact</strong>Interpret what an interactive root shell over SSH means for the host.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Evidence</span>
+      <h2>Answer every question</h2>
+    </div>
+
+    <ol class="qlist">
+      <li>
+        <strong>Which host, which account, and which source IP are involved in this alert?</strong>
+        <div class="answer-box"><textarea data-question="q1" placeholder="Host, user, src_ip"></textarea></div>
+        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+      </li>
+      <li>
+        <strong>What was the exact timestamp of the SSH login, and of the sudo command that followed?</strong>
+        <div class="answer-box"><textarea data-question="q2" placeholder="Both timestamps"></textarea></div>
+      </li>
+      <li>
+        <strong>How many seconds passed between the login and the sudo command?</strong>
+        <div class="answer-box"><textarea data-question="q3" placeholder="Elapsed seconds"></textarea></div>
+      </li>
+      <li>
+        <strong>Reproduce the full sudo record from the raw log line: TTY, working directory, target user, and command.</strong>
+        <div class="answer-box"><textarea data-question="q4" placeholder="Full sudo invocation"></textarea></div>
+      </li>
+      <li>
+        <strong>Which account escalated to which account, and what is the resulting privilege level?</strong>
+        <div class="answer-box"><textarea data-question="q5" placeholder="From -> to, privilege level"></textarea></div>
+      </li>
+      <li>
+        <strong>Why is the requested command dangerous? Explain what the <code>-i</code> flag changes about the shell's behaviour.</strong>
+        <div class="answer-box"><textarea data-question="q6" placeholder="Technical explanation"></textarea></div>
+      </li>
+      <li>
+        <strong>Find the benign sudo events on the same host. Which account ran them, what commands did they request, and what severity were they assigned?</strong>
+        <div class="answer-box"><textarea data-question="q7" placeholder="Benign sudo comparison"></textarea></div>
+      </li>
+      <li>
+        <strong>Which specific fields let you tell the malicious sudo from the benign sudo? List them.</strong>
+        <div class="answer-box"><textarea data-question="q8" placeholder="Discriminating fields"></textarea></div>
+      </li>
+      <li>
+        <strong>State the final security finding and the immediate containment action for this host.</strong>
+        <div class="answer-box"><textarea data-question="q9" placeholder="Finding + containment"></textarea></div>
+      </li>
+    </ol>
+
+    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
+      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+      <a class="btn btn-blue" href="scenario-5-multi-event-soc-investigation.html">Next scenario</a>
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+    </div>
+    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+      <span class="callout-title">Scenario marked complete</span>
+      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Progressive Hints</span>
+      <h2>Stuck? Reveal one step at a time.</h2>
+    </div>
+
+    <details class="hint">
+      <summary>Hint 1 &mdash; finding the alert</summary>
+      <div class="hint-body">
+        <p>Use the "Top Source IPs by Alert Count" panel. The Scenario 03 alert came from a
+        Windows host; this one came from a different source IP and is on <code>web-01</code>.
+        Confirm by reading the alert's <code>reasoning</code> text, which quotes the exact command
+        that was run.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 2 &mdash; the sudo record structure</summary>
+      <div class="hint-body">
+        <p>A sudo log line looks like:</p>
+        <pre><code>sudo: USER : TTY=... ; PWD=... ; USER=root ; COMMAND=...</code></pre>
+        <p>The second <code>USER=</code> is the account being assumed &mdash; that is the
+        escalation. Everything after <code>COMMAND=</code> is what was actually executed.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 3 &mdash; why the shell matters</summary>
+      <div class="hint-body">
+        <p>Compare the requested command against a normal administrative command. Think about
+        what changes when a shell is started <em>interactively</em> over an existing remote
+        session: it is the standard way an attacker keeps control after gaining a foothold, and
+        it is not something a scheduled task or a service restart needs.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 4 &mdash; finding the benign sudo</summary>
+      <div class="hint-body">
+        <p>Filter the normalized events:</p>
+        <pre><code>event_type: "privilege_escalation" AND host: "web-01"</code></pre>
+        <p>You should get more than one hit. Sort by <code>@timestamp</code> and compare the
+        <code>process.command_line</code> and <code>severity</code> of each.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 5 &mdash; what to write down</summary>
+      <div class="hint-body">
+        <p>The comparison question is: "what is the single difference that makes one of these
+        two requests malicious?" Answer that first, and the classification follows. Then say what
+        an interactive root shell means: the attacker can now read and modify everything on that
+        host, and can install persistence.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section section-dark">
+    <div class="section-head">
+      <span class="kicker">Skills Practised</span>
+      <h2>What this exercise builds</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card"><h3>Linux privilege model</h3><p class="mb0">Reading sudo records and reasoning about account transitions and privilege levels.</p></div>
+      <div class="card"><h3>Reverse-shell literacy</h3><p class="mb0">Recognising interactive shell invocation and why it appears in attack chains.</p></div>
+      <div class="card"><h3>False-positive discrimination</h3><p class="mb0">Separating routine administrative activity from compromise using field-level evidence.</p></div>
+      <div class="card"><h3>Raw log interpretation</h3><p class="mb0">Parsing structured syslog and sudo lines without a normaliser.</p></div>
+      <div class="card"><h3>Severity interpretation</h3><p class="mb0">Understanding why the parser assigned different severities to two similar event types.</p></div>
+      <div class="card"><h3>Containment judgement</h3><p class="mb0">Prioritising the correct first action on a host with a root-level foothold.</p></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Scenario 04</h4>
+        <ul>
+          <li><a href="scenario-3-post-login-execution.html">Previous: post-login execution</a></li>
+          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Reminder</h4>
+        <ul>
+          <li>Do not guess &mdash; find the record</li>
+          <li>Every answer must cite evidence</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

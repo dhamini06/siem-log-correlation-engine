@@ -1,0 +1,25 @@
+# Normalise line endings in the repository and keep deployment targets working.
+# The lab is developed on Windows and deployed to Ubuntu, so text files are
+# stored with LF and PowerShell scripts are allowed to use CRLF natively.
+* text=auto
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.log  text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+*.html text eol=lf
+*.ps1  text eol=crlf
+
+# Binary assets that must never be line-ending converted
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.exe  binary

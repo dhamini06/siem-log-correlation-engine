@@ -1,0 +1,45 @@
+# SIEM Lab Application Configuration
+# Tunable parameters for correlation rules and engine behavior
+
+app:
+  name: "siem-lab"
+  log_level: "INFO"
+  time_zone: "UTC"
+
+correlation:
+  engine_frequency_seconds: 60
+  alert_dedup_window_minutes: 30
+  lookback_window_minutes: 120
+  min_new_evidence_for_realert: 2
+  dedup_cache_path: "data/dedup-cache.json"
+
+rules:
+  brute_force:
+    enabled: true
+    min_failures: 5
+    time_window_minutes: 5
+    severity: "high"
+
+  successful_brute_force:
+    enabled: true
+    success_window_minutes: 10
+    severity: "critical"
+
+  suspicious_exec:
+    enabled: true
+    time_after_login_minutes: 2
+    severity: "high"
+    suspicious_processes:
+      - "cmd.exe"
+      - "powershell.exe"
+      - "bash"
+      - "/bin/bash"
+      - "/bin/bash -i"
+      - "nc"
+    expected_processes:
+      - "explorer.exe"
+      - "svchost.exe"
+      - "spoolsv.exe"
+      - "cron"
+      - "systemd-logind"
+      - "sshd"

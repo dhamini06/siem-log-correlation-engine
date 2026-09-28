@@ -1,0 +1,64 @@
+# Lab #07 - Filebeat configuration: firewall syslog
+# Use on the firewall itself (native syslog file) or on a collector that
+# receives syslog over TCP/UDP. Raw lines are preserved in raw-events-*;
+# src/normalization/firewall_syslog.py performs the parsing.
+#
+#   cp config/filebeat/filebeat-firewall.yml /etc/filebeat/filebeat.yml
+#   sudo filebeat test config -c /etc/filebeat/filebeat.yml
+#   sudo systemctl enable --now filebeat
+
+filebeat.inputs:
+  # Firewall logs already written to disk (Cisco ASA, Fortinet, Palo Alto, ufw).
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/firewall/*.log
+      - /var/log/asa/*.log
+      - /var/log/kern.log
+    scan_frequency: 10s
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: firewall_syslog
+            collector: filebeat
+
+  # Optional: listen for syslog forwarded from network devices.
+  - type: udp
+    enabled: false
+    ports: [5514]
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: firewall_syslog
+            collector: filebeat-syslog-receiver
+
+  - type: tcp
+    enabled: false
+    ports: [5514]
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: firewall_syslog
+            collector: filebeat-syslog-receiver
+
+filebeat.processors:
+  - add_cloud_metadata: ~
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "log.offset"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://localhost:9200"]
+  index: "raw-events-%{+yyyy.MM.dd}"
+  setup.template.name: "raw-events"
+  setup.template.pattern: "raw-events-*"
+
+setup.ilm.enabled: false
+logging.level: info
+logging.to_files: true

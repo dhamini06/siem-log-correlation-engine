@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Investigate | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="instructions">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="instructions.html">How to Investigate</a>
+      <a href="index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / How to Investigate</div>
+    <h1>How to investigate a SIEM alert</h1>
+    <p class="sub">
+      Your task is not to guess the incident. Use the SIEM to investigate the evidence,
+      then state what the data proves.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+
+<!-- ================================================================ STEP 1 -->
+<section class="section">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <span class="kicker">Step 1</span>
+      <h2>Read the SIEM introduction</h2>
+      <p>Before touching an alert, know what the fields mean. Every number in this lab is derived from these fields.</p>
+    </div>
+
+    <h3>The event schema</h3>
+    <p>All three log sources are parsed into one schema, so you can reason across Windows, Linux and firewall telemetry in the same query.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Meaning</th><th>Use it to answer</th></tr></thead>
+        <tbody>
+          <tr><td><code>@timestamp</code></td><td>When the event happened (UTC)</td><td>"When did it happen?"</td></tr>
+          <tr><td><code>event_type</code></td><td><code>logon_failure</code>, <code>logon_success</code>, <code>process_create</code>, <code>privilege_escalation</code>, <code>network_connection</code></td><td>"Which events occurred?"</td></tr>
+          <tr><td><code>host</code></td><td>System the event occurred on</td><td>"Which host was affected?"</td></tr>
+          <tr><td><code>user</code></td><td>Account involved (Windows as <code>DOMAIN\user</code>)</td><td>"Which user was involved?"</td></tr>
+          <tr><td><code>src_ip</code></td><td>Originating address</td><td>"Which source IP was involved?"</td></tr>
+          <tr><td><code>dst_ip</code> / <code>port</code></td><td>Destination address and port</td><td>"What was the traffic targeting?"</td></tr>
+          <tr><td><code>process.name</code> / <code>command_line</code></td><td>Executed binary and its arguments</td><td>"What did it actually run?"</td></tr>
+          <tr><td><code>severity</code></td><td>Parser-assessed event significance</td><td>"How serious is this event on its own?"</td></tr>
+          <tr><td><code>raw_event</code></td><td>The original, unparsed log line</td><td>"What does the source system actually say?"</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:1.6rem">The three correlation rules</h3>
+    <div class="grid grid-3">
+      <div class="card card-accent">
+        <h3>brute_force</h3>
+        <p class="mb0"><strong>Trigger:</strong> &ge;5 <code>logon_failure</code> from one <code>src_ip</code> within 5 minutes.<br><strong>Severity:</strong> high.<br><strong>Suppressed</strong> if a success from that IP follows, because rule 2 takes over.</p>
+      </div>
+      <div class="card card-accent-orange">
+        <h3>successful_brute_force</h3>
+        <p class="mb0"><strong>Trigger:</strong> the rule 1 condition <em>plus</em> a <code>logon_success</code> from the same IP and user within 10 minutes.<br><strong>Severity:</strong> critical.</p>
+      </div>
+      <div class="card card-accent">
+        <h3>suspicious_process_post_login</h3>
+        <p class="mb0"><strong>Trigger:</strong> <code>logon_success</code> followed within 2 minutes by a suspicious process on the same host.<br><strong>Severity:</strong> high.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info" style="margin-top:1.2rem">
+      <span class="callout-title">Triage is a judgement, not a filter</span>
+      <p class="mb0">
+        Not everything suspicious alerts, and not everything benign is quiet. One account in this
+        lab fails four logons and then logs in successfully &mdash; below the threshold of five, so
+        no alert. Another launches PowerShell 30 minutes after login &mdash; outside the 2-minute
+        window, so no alert. Knowing <em>why</em> something did not alert is as important as
+        knowing why it did.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ STEP 2 -->
+<section class="section section-alt">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <span class="kicker">Step 2</span>
+      <h2>Open the SOC Triage Board</h2>
+    </div>
+    <p>Start with the alert population, not with a single alert. You should be able to state how many alerts exist and how they split by severity before you investigate any of them.</p>
+    <p><a class="btn btn-primary" data-kibana-dash>Open the SOC Triage Board</a></p>
+    <div class="grid grid-2" style="margin-top:1rem">
+      <div class="card">
+        <h3>What is on the board</h3>
+        <ul class="toc">
+          <li>Alert count by severity (bar chart)</li>
+          <li>Alert timeline over time, split by severity</li>
+          <li>Top source IPs by alert count</li>
+          <li>Suspicious hosts by alert count</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Time range matters</h3>
+        <p>The board defaults to the last 7 days. If a panel looks empty, check the time picker
+        in the top right and widen it. All lab alerts fall inside that window.</p>
+        <p class="mb0">If a panel shows <code>Could not find the data view: -</code>, tell your
+        instructor &mdash; the saved objects did not import.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ STEP 3 -->
+<section class="section">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <span class="kicker">Steps 3 to 7</span>
+      <h2>The investigation loop</h2>
+    </div>
+    <ol class="steps">
+      <li><strong>Pick the alert your scenario describes</strong>Use severity and the reasoning text to match the brief to a real alert.</li>
+      <li><strong>Read the alert, not just the title</strong><code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>, <code>host</code>, <code>first_seen</code>, <code>last_seen</code>, and the <code>reasoning</code> sentence that states the rule and the numbers.</li>
+      <li><strong>Follow the evidence</strong><code>evidence_event_ids</code> lists the exact events behind the alert. In Discover, search by <code>_id</code> to load them, or filter on <code>src_ip</code> / <code>host</code> and the time window.</li>
+      <li><strong>Read the raw lines</strong><code>raw_event</code> holds the untouched sshd, Windows or firewall line. It is the ground truth for what the source system recorded.</li>
+      <li><strong>Widen the search for context</strong>Look around the window. What else touched that host or user? Is there a success, a process, or a firewall block that changes the meaning?</li>
+      <li><strong>Answer each question with a record</strong>Type the value and, where it matters, the evidence that proves it.</li>
+      <li><strong>Write the finding</strong>State the security conclusion the evidence supports, and the severity you would assign as the responding analyst.</li>
+    </ol>
+
+    <h3 style="margin-top:1.8rem">Nine things every investigation must identify</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Question</th><th>Where to look</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>What happened?</td><td>Alert <code>rule_name</code> + <code>reasoning</code></td></tr>
+          <tr><td>2</td><td>When did it happen?</td><td><code>timestamp</code>, <code>first_seen</code>, <code>last_seen</code></td></tr>
+          <tr><td>3</td><td>Which host was affected?</td><td><code>host</code></td></tr>
+          <tr><td>4</td><td>Which user was involved?</td><td><code>user</code></td></tr>
+          <tr><td>5</td><td>Which source IP was involved?</td><td><code>src_ip</code></td></tr>
+          <tr><td>6</td><td>Which events occurred?</td><td><code>event_type</code> across the evidence set</td></tr>
+          <tr><td>7</td><td>Why did the SIEM generate the alert?</td><td>Rule trigger and its thresholds</td></tr>
+          <tr><td>8</td><td>What evidence supports your conclusion?</td><td><code>evidence_event_ids</code> + <code>raw_event</code></td></tr>
+          <tr><td>9</td><td>What is the final security finding?</td><td>Your own conclusion, written plainly</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-crit" style="margin-top:1.4rem">
+      <span class="callout-title">Do not guess</span>
+      <p class="mb0">
+        If a question asks for a count, a time or an address, find the record. "Probably about
+        five" is not an answer; <em>"10 failed logons, 07:25:55Z to 07:28:07Z"</em> is. A
+        security finding that is not backed by evidence is worthless in a real incident, and
+        that is exactly what this lab is teaching.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ QUERIES -->
+<section class="section section-alt">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <span class="kicker">Reference</span>
+      <h2>Useful Discover queries</h2>
+      <p>Type these in the Kibana Discover search bar with the <code>normalized-events-*</code> data view selected.</p>
+    </div>
+
+    <h4>All events from one source IP</h4>
+    <pre><code>src_ip: "203.0.113.45"</code></pre>
+
+    <h4>All failed logons on one host, newest first</h4>
+    <pre><code>host: "web-01" AND event_type: "logon_failure"</code></pre>
+
+    <h4>Logons for one account</h4>
+    <pre><code>user: "alice" AND event_type: ("logon_success" OR "logon_failure")</code></pre>
+
+    <h4>Process creation and privilege escalation</h4>
+    <pre><code>event_type: ("process_create" OR "privilege_escalation")</code></pre>
+
+    <h4>Find a specific alert's evidence events</h4>
+    <pre><code>_id: ("PASTE_EVIDENCE_ID_HERE")</code></pre>
+
+    <h4>Firewall blocks toward a host</h4>
+    <pre><code>event_type: "network_connection" AND dst_ip: "10.0.0.10"</code></pre>
+
+    <h4>High and critical alerts only</h4>
+    <pre><code>severity: ("high" OR "critical")</code></pre>
+
+    <div class="callout callout-info" style="margin-top:1.3rem">
+      <span class="callout-title">Tip: the time picker is part of the question</span>
+      <p class="mb0">When a question asks "how many", make sure your time range is wide enough to
+      contain the whole sequence. A count taken over four minutes instead of six will be wrong.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ START -->
+<section class="section">
+  <div class="wrap narrow">
+    <div class="section-head">
+      <span class="kicker">Step 4</span>
+      <h2>Ready to start?</h2>
+      <p>Open a scenario, work every question, then mark it complete. Your answers stay in this browser so you can come back to them.</p>
+    </div>
+    <p>
+      <a class="btn btn-primary" href="scenarios/scenario-1-brute-force.html">Scenario 1 &mdash; Brute Force Investigation</a>
+      <a class="btn btn-outline" href="index.html#scenarios">All scenarios</a>
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Lab</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="index.html#scenarios">Practice scenarios</a></li>
+          <li><a data-kibana-link>Open SIEM Dashboard</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-es-link>Elasticsearch</a></li>
+          <li><a data-kibana-dash>SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul>
+          <li>Ask your instructor for the answer key</li>
+          <li>All data is synthetic and local</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_HTTP_PORT=9200
+      - cluster.name=siem-lab
+      - node.name=es-1
+      # Heap must be pinned explicitly. Left to auto-size inside a small cgroup, ES
+      # picks a 204m heap and then the JVM plus off-heap buffers exceed the container
+      # limit, so the OOM killer sends SIGKILL (exit code 137) and the container
+      # restarts. A 512m heap needs roughly 1g of additional off-heap/direct memory,
+      # so the container gets 2g (~25% heap) which leaves ample headroom for the
+      # Kibana-generated background indexes and dashboard aggregations.
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      # Trim the two background consumers that need no lab data: ML and the GeoIP
+      # database downloader.
+      - xpack.ml.enabled=false
+      - ingest.geoip.downloader.enabled=false
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 2g
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: kibana
+    environment:
+      # Service hostname, NOT localhost: inside the container localhost is Kibana itself,
+      # which is what caused the setup wizard to hang on ECONNREFUSED 127.0.0.1:9200.
+      # Supplying elasticsearch.hosts here is what makes Kibana self-configure on every
+      # start, so the interactive enrollment wizard is never required.
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      - XPACK_SECURITY_ENABLED=false
+      - SERVER_HOST=0.0.0.0
+      # Stable lab-only keys so sessions and encrypted saved objects survive restarts
+      # (Kibana otherwise regenerates random keys on every boot).
+      # REPLACE with `bin/kibana-encryption-keys` output before any real deployment.
+      - XPACK_SECURITY_ENCRYPTIONKEY=siem-lab-security-encryption-key-0001
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=siem-lab-eso-encryption-key-0000001
+      - XPACK_REPORTING_ENCRYPTIONKEY=siem-lab-reporting-encryption-key-0001
+    volumes:
+      - kibana-config:/usr/share/kibana/data
+    mem_limit: 768m
+    ports:
+      - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  es-data:
+    driver: local
+  kibana-config:
+    driver: local
+
+networks:
+  siem-lab-net:
+    driver: bridge

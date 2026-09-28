@@ -1,0 +1,14 @@
+Sep 25 11:14:54 web-01 sshd[2000]: Accepted password for alice from 10.0.0.21 port 40000 ssh2
+Sep 25 11:15:14 web-01 sshd[2100]: Failed password for alice from 10.0.0.21 port 41000 ssh2
+Sep 25 11:21:54 web-01 sshd[2001]: Accepted password for bob from 10.0.0.22 port 40001 ssh2
+Sep 25 11:22:14 web-01 sshd[2101]: Failed password for bob from 10.0.0.22 port 41001 ssh2
+Sep 25 11:28:54 web-01 sshd[2002]: Accepted password for carol from 10.0.0.23 port 40002 ssh2
+Sep 25 11:29:14 web-01 sshd[2102]: Failed password for carol from 10.0.0.23 port 41002 ssh2
+Sep 25 11:35:54 web-01 sshd[2003]: Accepted password for alice from 10.0.0.21 port 40003 ssh2
+Sep 25 11:36:14 web-01 sshd[2103]: Failed password for alice from 10.0.0.21 port 41003 ssh2
+Sep 25 11:42:54 web-01 sshd[2004]: Accepted password for bob from 10.0.0.22 port 40004 ssh2
+Sep 25 11:43:14 web-01 sshd[2104]: Failed password for bob from 10.0.0.22 port 41004 ssh2
+Sep 25 11:49:54 web-01 sshd[2005]: Accepted password for carol from 10.0.0.23 port 40005 ssh2
+Sep 25 11:50:14 web-01 sshd[2105]: Failed password for carol from 10.0.0.23 port 41005 ssh2
+Sep 25 11:24:54 web-01 sudo: carol : TTY=pts/0 ; PWD=/home/carol ; USER=root ; COMMAND=/usr/bin/systemctl restart nginx
+Sep 25 11:39:54 web-01 sudo: carol : TTY=pts/0 ; PWD=/home/carol ; USER=root ; COMMAND=/usr/bin/apt-get update

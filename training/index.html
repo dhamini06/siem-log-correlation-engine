@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIEM Log Correlation Engine | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
+<meta name="description" content="BlueCloud Softech Solutions cybersecurity training lab: investigate SIEM alerts in Kibana across five practical incident scenarios.">
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="index">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="instructions.html">How to Investigate</a>
+      <a href="#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Lab #07 &middot; Security Information &amp; Event Management</span>
+    <h1>SIEM Log Correlation Engine</h1>
+    <p class="lede">
+      A hands-on security operations lab. You will read real alerts, pull the raw
+      authentication and process events behind them, and reach an evidence-based
+      conclusion about what actually happened on the network.
+    </p>
+    <div class="hero-meta">
+      <span class="chip chip-blue">Elasticsearch 8.13</span>
+      <span class="chip chip-blue">Kibana 8.13</span>
+      <span class="chip chip-orange">5 Investigation Scenarios</span>
+      <span class="chip chip-blue" id="progress-summary" data-total="5">0 / 5 scenarios completed</span>
+      <span class="chip chip-light" data-es-status>Checking Elasticsearch...</span>
+    </div>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="instructions.html">Start Investigation</a>
+      <a class="btn btn-ghost" data-kibana-link>Open SIEM Dashboard</a>
+    </div>
+  </div>
+</section>
+
+<main id="main">
+
+  <!-- ------------------------------------------------------ objective -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Lab Objective</span>
+        <h2>Work the alert queue like a SOC analyst</h2>
+      </div>
+      <div class="grid grid-2">
+        <div class="card card-accent">
+          <h3>What this lab is</h3>
+          <p>
+            A complete SIEM pipeline is running locally: raw authentication, endpoint and
+            firewall logs are parsed into a single schema, stored in Elasticsearch, and
+            correlated by three detection rules. The result is a SOC Triage Board of
+            alerts, each one carrying the evidence that produced it.
+          </p>
+        </div>
+        <div class="card card-accent-orange">
+          <h3>What you will do</h3>
+          <p>
+            Pick a scenario, read the incident brief, then investigate inside Kibana.
+            For every alert you must establish the source IP, the user, the host, the
+            timeline, and the raw events involved &mdash; and then state a security
+            finding the evidence actually supports.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------- what you learn -->
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Learning Outcomes</span>
+        <h2>What you will learn</h2>
+      </div>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>Read a SIEM alert</h3>
+          <p>Interpret <code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>, <code>host</code>, <code>first_seen</code>/<code>last_seen</code> and the alert reasoning.</p>
+        </div>
+        <div class="card">
+          <h3>Follow the evidence</h3>
+          <p>Use <code>evidence_event_ids</code> to jump from an alert to the exact normalized events that triggered it, then to the untouched raw log line.</p>
+        </div>
+        <div class="card">
+          <h3>Correlate a sequence</h3>
+          <p>Reconstruct an attack timeline across event types: failed logon, successful logon, process creation, privilege escalation, and firewall blocks.</p>
+        </div>
+        <div class="card">
+          <h3>Distinguish signal from noise</h3>
+          <p>Explain why some suspicious-looking activity correctly produced <em>no</em> alert. Triage is judgement, not just filtering.</p>
+        </div>
+        <div class="card">
+          <h3>Understand detection rules</h3>
+          <p>See how a threshold rule works: brute force, successful brute force, and suspicious post-login execution &mdash; including their tuning parameters.</p>
+        </div>
+        <div class="card">
+          <h3>Write a security finding</h3>
+          <p>State what happened, when, to which host and account, why the SIEM alerted, and what the evidence proves &mdash; in plain language an incident responder can act on.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------ how it fits together -->
+  <section class="section section-dark">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">How It Fits Together</span>
+        <h2>One SIEM, five investigations</h2>
+        <p class="lede">
+          The five scenarios are not separate systems. They are five investigations
+          performed against the same running SIEM and the same alert data.
+        </p>
+      </div>
+      <div class="grid grid-4">
+        <div class="card stat"><div class="n">50</div><div class="l">Normalized events</div></div>
+        <div class="card stat"><div class="n">3</div><div class="l">Correlation rules</div></div>
+        <div class="card stat"><div class="n">4</div><div class="l">Alerts raised</div></div>
+        <div class="card stat"><div class="n">5</div><div class="l">Scenarios</div></div>
+      </div>
+      <div class="grid grid-2" style="margin-top:1.1rem">
+        <div class="card">
+          <h3>Where the evidence lives</h3>
+          <ul class="toc">
+            <li><a data-kibana-link>security-alerts-* &mdash; correlation results (Kibana data view)</a></li>
+            <li><a data-kibana-link>normalized-events-* &mdash; parsed events (Kibana data view)</a></li>
+            <li><code>raw_event</code> &mdash; the original untouched log line on every event</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>The three detection rules</h3>
+          <ul class="toc">
+            <li><strong>brute_force</strong> &mdash; &ge;5 failed logons, one source IP, 5 minutes &rarr; high</li>
+            <li><strong>successful_brute_force</strong> &mdash; burst plus a success &rarr; critical</li>
+            <li><strong>suspicious_process_post_login</strong> &mdash; login then risky process within 2 minutes &rarr; high</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------- scenarios -->
+  <section class="section" id="scenarios">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Practice Scenarios</span>
+        <h2>Five practical investigations</h2>
+        <p class="lede">
+          Work them in order. Each builds on the detection logic and evidence vocabulary of
+          the one before it. Your answers must be supported by data you find in the SIEM.
+        </p>
+      </div>
+
+      <div class="grid grid-3">
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 01</span>
+            <span class="diff diff-easy">Easy</span>
+          </div>
+          <h3>Brute Force Investigation</h3>
+          <p class="desc">
+            A burst of failed SSH logons against the web server. Establish the source IP,
+            the accounts attacked, the exact time window, and the corroborating firewall
+            evidence.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: brute_force</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-1-brute-force.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent-orange scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 02</span>
+            <span class="diff diff-medium">Medium</span>
+          </div>
+          <h3>Successful Login After Brute Force</h3>
+          <p class="desc">
+            The same failure pattern &mdash; but this time a login succeeded. Correlate the
+            failures to the success and explain why the severity escalated to critical.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: successful_brute_force</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-2-successful-brute-force.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 03</span>
+            <span class="diff diff-medium">Medium</span>
+          </div>
+          <h3>Suspicious Post-Login Process Execution</h3>
+          <p class="desc">
+            A Windows account authenticated, then launched a command shell seconds later.
+            Measure the gap, read the command line, and explain why it is dangerous.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: suspicious_process_post_login</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-3-post-login-execution.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent-orange scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 04</span>
+            <span class="diff diff-hard">Hard</span>
+          </div>
+          <h3>Linux Privilege Escalation &amp; Reverse Shell</h3>
+          <p class="desc">
+            A Linux account logged in over SSH, then used sudo to start an interactive
+            root shell. Separate this from the legitimate sudo activity on the same host.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Event: privilege_escalation</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-4-linux-privilege-escalation.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 05</span>
+            <span class="diff diff-hard">Hard</span>
+          </div>
+          <h3>Multi-Event SOC Investigation</h3>
+          <p class="desc">
+            The full incident. Build the complete timeline across every host, rank the
+            findings by severity, and write the incident conclusion a SOC would escalate.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">All rules</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-5-multi-event-soc-investigation.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card scenario-card" style="border-top:3px solid var(--text-muted)">
+          <div class="card-top"><span class="num">Reference</span></div>
+          <h3>How to investigate</h3>
+          <p class="desc">
+            The nine points every investigation must answer, the Kibana queries that get you
+            there, and the field reference for the SIEM schema.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Student guide</span>
+            <a class="btn btn-outline btn-sm" href="instructions.html">Read the guide</a>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------ instructions -->
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Basic Instructions</span>
+        <h2>How to run the lab</h2>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Your task is not to guess</h3>
+          <p>
+            Do not answer from the scenario title. Every answer you give must be something
+            you <em>found</em> in the SIEM &mdash; an alert field, a timestamp, a source IP,
+            a username, a host, an event type, or a raw log line. If you cannot point to
+            the record that proves it, the answer is not finished.
+          </p>
+          <div class="callout callout-warn">
+            <span class="callout-title">The SIEM dashboard is your only evidence source</span>
+            <p class="mb0">Every number in the answer key exists in Kibana right now. If a question asks for a count, a time, or an IP, find it there.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>The student workflow</h3>
+          <ol class="steps">
+            <li><strong>Read the introduction</strong>Know the schema and the three rules.</li>
+            <li><strong>Open the SOC Triage Board</strong>See the alert population.</li>
+            <li><strong>Investigate the alerts</strong>Drill into evidence events.</li>
+            <li><strong>Open your scenario</strong>Read the incident brief.</li>
+            <li><strong>Work in Kibana</strong>Use the data views and raw events.</li>
+            <li><strong>Answer the questions</strong>One finding at a time.</li>
+            <li><strong>Record evidence and finding</strong>Write what the data proves.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="grid grid-3" style="margin-top:1.1rem">
+        <div class="card">
+          <h3>1. Open the Triage Board</h3>
+          <p class="mb0">Start at the alert population. Note how many alerts exist and their severities before you look at any one of them.</p>
+        </div>
+        <div class="card">
+          <h3>2. Follow the evidence</h3>
+          <p class="mb0">Every alert has <code>evidence_event_ids</code>. Use it to reach the exact events, then read <code>raw_event</code> for the original line.</p>
+        </div>
+        <div class="card">
+          <h3>3. Write the finding</h3>
+          <p class="mb0">Close with what happened, when, where, who, why the SIEM alerted, and what the evidence proves.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+        <p style="margin:0"><span class="chip chip-orange">Training use only</span></p>
+      </div>
+      <div>
+        <h4>Lab</h4>
+        <ul>
+          <li><a href="instructions.html">How to investigate</a></li>
+          <li><a href="#scenarios">Practice scenarios</a></li>
+          <li><a data-kibana-link>Open SIEM Dashboard</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-es-link>Elasticsearch</a></li>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-kibana-dash>SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Rules in this lab</h4>
+        <ul>
+          <li>brute_force</li>
+          <li>successful_brute_force</li>
+          <li>suspicious_process_post_login</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script>
+  /* Single source of truth for the lab endpoints, so the URL only lives here. */
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

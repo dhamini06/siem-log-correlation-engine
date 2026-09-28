@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario 05 - Multi-Event SOC Investigation | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="../assets/css/bluecloud.css">
+</head>
+<body data-page="scenario-5" data-scenario="scenario-5">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="../assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../instructions.html">How to Investigate</a>
+      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 05
+    </div>
+    <div class="hero-meta" style="margin:0 0 0.6rem">
+      <span class="chip chip-orange">Scenario 05</span>
+      <span class="diff diff-hard">Hard</span>
+      <span class="chip chip-blue">All three rules</span>
+      <span class="chip chip-light">Capstone</span>
+    </div>
+    <h1>Multi-Event SOC Investigation</h1>
+    <p class="sub">
+      The whole incident. Reconstruct the complete timeline across every host, rank the findings
+      by severity, and write the conclusion a SOC shift lead would escalate at handover.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap narrow">
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Incident Brief</span>
+      <h2>Objective and background</h2>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-title">Security objective</span>
+      <p>Produce a single incident picture from four independent alerts across two hosts and
+      two attacker source IPs, exclude the benign activity, and deliver a prioritised
+      conclusion with justification.</p>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-title">Incident story</span>
+      <p>
+        It is 08:00. You are the SOC analyst on shift. Overnight, the SOC Triage Board collected
+        four alerts, and the operations team has separately reported that a web server account
+        behaved strangely and that an application server administrator was seen at the keyboard.
+        Before you escalate anything to the incident response team you must produce one coherent,
+        evidence-based account of the night, and you must be explicit about what is noise.
+      </p>
+      <p class="mb0">
+        The first four scenarios taught you each alert type individually. This scenario is the
+        assessment: can you triage a whole queue, rank it, and write it up?
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>What you know at the start</h3>
+      <ul>
+        <li>Four alerts exist, across two distinct hosts and more than two distinct source IPs.</li>
+        <li>The same lab also contains benign activity that correctly produced no alert.</li>
+        <li>One alert is <code>critical</code>. The severity order is a triage order.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent-orange" style="margin-top:1rem">
+      <h3>Investigation task</h3>
+      <ol class="steps">
+        <li><strong>Survey the queue</strong>Count the alerts and split them by severity and rule.</li>
+        <li><strong>Build the timeline</strong>Order every relevant event on a single UTC axis, including the firewall records.</li>
+        <li><strong>Cluster the activity</strong>Group events by source IP, host and user. Decide how many distinct activity clusters exist.</li>
+        <li><strong>Identify the baseline</strong>Find the routine activity on the web server and confirm it is unrelated.</li>
+        <li><strong>Identify the non-alerting near-misses</strong>Two pieces of suspicious-looking activity produced no alert. Explain both.</li>
+        <li><strong>Rank and escalate</strong>Decide which finding is most serious and justify it with the alert severity and the evidence.</li>
+        <li><strong>Write the handover</strong>Produce a short incident conclusion an oncoming analyst could act on.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Evidence</span>
+      <h2>Answer every question</h2>
+    </div>
+
+    <ol class="qlist">
+      <li>
+        <strong>How many alerts are on the board, and how do they split by severity and by rule?</strong>
+        <div class="answer-box"><textarea data-question="q1" placeholder="Counts by severity and rule"></textarea></div>
+        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+      </li>
+      <li>
+        <strong>List every alert with: rule name, severity, source IP, user, host, and timestamp. This is your master table.</strong>
+        <div class="answer-box"><textarea data-question="q2" placeholder="Master alert table"></textarea></div>
+      </li>
+      <li>
+        <strong>How many distinct source IPs generated alerts, and which host did each target?</strong>
+        <div class="answer-box"><textarea data-question="q3" placeholder="Source IPs and targets"></textarea></div>
+      </li>
+      <li>
+        <strong>Build the timeline: what happened first, what happened last, and what is the total elapsed span of the attack activity?</strong>
+        <div class="answer-box"><textarea data-question="q4" placeholder="First / last / span"></textarea></div>
+      </li>
+      <li>
+        <strong>Two alerts share a host but have different source IPs and different users. Are they the same incident? Justify your answer.</strong>
+        <div class="answer-box"><textarea data-question="q5" placeholder="Same or separate, with reasoning"></textarea></div>
+      </li>
+      <li>
+        <strong>Which alert is the most serious, and why? Name the rule and the evidence that makes it worse than the others.</strong>
+        <div class="answer-box"><textarea data-question="q6" placeholder="Most serious alert + justification"></textarea></div>
+      </li>
+      <li>
+        <strong>What does the firewall contribute to this incident that the host logs alone do not?</strong>
+        <div class="answer-box"><textarea data-question="q7" placeholder="Firewall contribution"></textarea></div>
+      </li>
+      <li>
+        <strong>Identify TWO pieces of activity in this lab that looked suspicious but correctly produced no alert. Explain the rule or window that kept each one quiet.</strong>
+        <div class="answer-box"><textarea data-question="q8" placeholder="Two non-alerting activities + reasons"></textarea></div>
+      </li>
+      <li>
+        <strong>What is the routine background activity on the web server, and how do you prove it is normal rather than an early-stage attack?</strong>
+        <div class="answer-box"><textarea data-question="q9" placeholder="Baseline activity + proof"></textarea></div>
+      </li>
+      <li>
+        <strong>Write the handover: a short incident conclusion covering impact, affected assets, the attacker's objectives as far as the evidence supports them, and your three recommended next actions.</strong>
+        <div class="answer-box"><textarea data-question="q10" placeholder="Incident conclusion and next actions"></textarea></div>
+      </li>
+    </ol>
+
+    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
+      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+      <a class="btn btn-outline" href="../instructions.html">Back to the guide</a>
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+    </div>
+    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+      <span class="callout-title">Scenario marked complete</span>
+      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Progressive Hints</span>
+      <h2>Stuck? Reveal one step at a time.</h2>
+    </div>
+
+    <details class="hint">
+      <summary>Hint 1 &mdash; the master table</summary>
+      <div class="hint-body">
+        <p>Go to the SOC Triage Board and export or read all four alerts. For each one note
+        <code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>,
+        <code>host</code> and <code>timestamp</code>. Do this before looking at any events &mdash;
+        the alert queue is your starting position, not the evidence.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 2 &mdash; the timeline</summary>
+      <div class="hint-body">
+        <p>In Discover with the <code>normalized-events-*</code> data view, set the time picker to
+        cover the whole incident and sort by <code>@timestamp</code> ascending. Read down the
+        list. The two attacker IPs are the ones outside the internal <code>10.0.0.0/8</code> range
+        that are involved in brute force.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 3 &mdash; clustering</summary>
+      <div class="hint-body">
+        <p>Group by <code>src_ip</code> first, then by host. Two alerts landed on
+        <code>web-01</code> but from different source IPs, for different users, and were generated
+        by different rules. Ask yourself whether one attacker could plausibly have produced both,
+        and whether the timeline supports or contradicts it.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 4 &mdash; the non-alerting near-misses</summary>
+      <div class="hint-body">
+        <p>Search for suspicious-looking activity that has no alert:</p>
+        <pre><code>event_type: "logon_failure"</code></pre>
+        <p>and</p>
+        <pre><code>event_type: "process_create" AND process.name: "powershell.exe"</code></pre>
+        <p>One of these sits below a numeric threshold; the other sits outside a time window. Both
+        are the reason the rules do not fire on everything.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 5 &mdash; ranking</summary>
+      <div class="hint-body">
+        <p>Severity is a triage order, not a score. A <code>critical</code> alert means the
+        attacker demonstrably succeeded; a <code>high</code> alert means something dangerous is
+        in progress or just happened. Write down which of your alerts represents <em>confirmed
+        compromise</em> rather than <em>attempted or in-progress activity</em>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 6 &mdash; the handover</summary>
+      <div class="hint-body">
+        <p>A handover is not a summary of the dashboard. It answers: what is the impact, which
+        assets are affected, what did the attacker achieve, what are they likely to do next, and
+        what do we do first. Keep it to a short paragraph plus three actions.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section section-dark">
+    <div class="section-head">
+      <span class="kicker">Skills Practised</span>
+      <h2>What this exercise builds</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card"><h3>End-to-end triage</h3><p class="mb0">Working a whole alert queue rather than a single hand-picked alert.</p></div>
+      <div class="card"><h3>Timeline construction</h3><p class="mb0">Merging multiple hosts and log sources onto one ordered axis.</p></div>
+      <div class="card"><h3>Clustering and attribution</h3><p class="mb0">Deciding whether separate alerts belong to one incident and how confident you are.</p></div>
+      <div class="card"><h3>Risk ranking</h3><p class="mb0">Prioritising by security impact and justifying the ordering.</p></div>
+      <div class="card"><h3>Noise elimination</h3><p class="mb0">Proving which suspicious activity is not a finding, and why.</p></div>
+      <div class="card"><h3>Shift handover</h3><p class="mb0">Producing a concise, actionable incident conclusion for the next responder.</p></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Scenario 05</h4>
+        <ul>
+          <li><a href="scenario-4-linux-privilege-escalation.html">Previous: Linux escalation</a></li>
+          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Reminder</h4>
+        <ul>
+          <li>Do not guess &mdash; find the record</li>
+          <li>Every answer must cite evidence</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

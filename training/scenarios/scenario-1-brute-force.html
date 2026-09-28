@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario 01 - Brute Force Investigation | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="../assets/css/bluecloud.css">
+</head>
+<body data-page="scenario-1" data-scenario="scenario-1">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="../assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../instructions.html">How to Investigate</a>
+      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 01
+    </div>
+    <div class="hero-meta" style="margin:0 0 0.6rem">
+      <span class="chip chip-orange">Scenario 01</span>
+      <span class="diff diff-easy">Easy</span>
+      <span class="chip chip-blue">Rule: brute_force</span>
+      <span class="chip chip-blue">Expected severity: high</span>
+    </div>
+    <h1>Brute Force Investigation</h1>
+    <p class="sub">
+      Repeated failed SSH logons against the production web server. Establish exactly what
+      happened, and prove the attack did not succeed.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap narrow">
+
+  <!-- ------------------------------------------------------------- story -->
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Incident Brief</span>
+      <h2>Objective and background</h2>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-title">Security objective</span>
+      <p>Identify an automated credential-stuffing / brute force attack against the
+      <code>web-01</code> SSH service, quantify it precisely, and confirm whether the attacker
+      obtained access.</p>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-title">Incident story</span>
+      <p>
+        The overnight operations report flags a burst of failed SSH authentications against
+        <code>web-01</code>. A junior analyst noted "probably someone fat-fingering a password"
+        and closed the ticket. Your task is to replace that assumption with evidence. There is
+        a high-severity alert on the SOC Triage Board that matches this brief.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>What you know at the start</h3>
+      <ul>
+        <li>The affected host is a Linux web server reachable over SSH.</li>
+        <li>Authentication failures are visible as <code>logon_failure</code> events.</li>
+        <li>A firewall sits in front of the server and records blocked traffic.</li>
+        <li>You do <strong>not</strong> know the source IP, the accounts targeted, or whether it succeeded.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent" style="margin-top:1rem">
+      <h3>Investigation task</h3>
+      <ol class="steps">
+        <li><strong>Locate the alert</strong>On the SOC Triage Board, find the high-severity alert whose reasoning describes failed logons against a web server.</li>
+        <li><strong>Quantify the attack</strong>Establish the source IP, the accounts attacked, the number of failures, and the exact start and end of the window.</li>
+        <li><strong>Confirm the outcome</strong>Determine whether any successful login followed from that source.</li>
+        <li><strong>Corroborate with the firewall</strong>Check whether <code>fw-01</code> recorded blocked connections from the same source to the same host.</li>
+        <li><strong>Test the false-positive theory</strong>Find the account that also had failed logons that did <em>not</em> alert, and explain the difference.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------- questions -->
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Evidence</span>
+      <h2>Answer every question</h2>
+      <p>Each answer must be supported by a record you found in the SIEM. Your notes are saved in this browser.</p>
+    </div>
+
+    <ol class="qlist">
+      <li>
+        <strong>Which source IP launched the attack, and which host was targeted?</strong>
+        <div class="answer-box"><textarea data-question="q1" placeholder="Source IP / host"></textarea></div>
+        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+      </li>
+      <li>
+        <strong>Which usernames were attacked, and how many times was each targeted?</strong>
+        <div class="answer-box"><textarea data-question="q2" placeholder="Users and counts"></textarea></div>
+      </li>
+      <li>
+        <strong>How many failed logons are in the alert's evidence set, and what exact time window do they span?</strong>
+        <div class="answer-box"><textarea data-question="q3" placeholder="Count and timestamps (UTC)"></textarea></div>
+      </li>
+      <li>
+        <strong>Which correlation rule fired, and which two thresholds did the activity cross?</strong>
+        <div class="answer-box"><textarea data-question="q4" placeholder="Rule name + thresholds"></textarea></div>
+      </li>
+      <li>
+        <strong>Did any successful login follow from that source IP? How do you know?</strong>
+        <div class="answer-box"><textarea data-question="q5" placeholder="Yes/no + the evidence"></textarea></div>
+      </li>
+      <li>
+        <strong>What corroborating evidence exists on the firewall? Give the source, destination, port and timing.</strong>
+        <div class="answer-box"><textarea data-question="q6" placeholder="Firewall events"></textarea></div>
+      </li>
+      <li>
+        <strong>Another account in this lab also had failed logons but produced no alert. Which account, how many failures, and why no alert?</strong>
+        <div class="answer-box"><textarea data-question="q7" placeholder="Account, count, threshold reasoning"></textarea></div>
+      </li>
+      <li>
+        <strong>Why were some of the failed logons recorded as "Invalid user" rather than "Failed password"? What does that tell you about the attack?</strong>
+        <div class="answer-box"><textarea data-question="q8" placeholder="Interpretation of the log lines"></textarea></div>
+      </li>
+      <li>
+        <strong>State the final security finding in two or three sentences: what happened, to what, from where, and what is the impact?</strong>
+        <div class="answer-box"><textarea data-question="q9" placeholder="Your security finding"></textarea></div>
+      </li>
+    </ol>
+
+    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
+      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+      <a class="btn btn-blue" href="scenario-2-successful-brute-force.html">Next scenario</a>
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+    </div>
+    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+      <span class="callout-title">Scenario marked complete</span>
+      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- hints -->
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Progressive Hints</span>
+      <h2>Stuck? Reveal one step at a time.</h2>
+    </div>
+
+    <details class="hint">
+      <summary>Hint 1 &mdash; finding the alert</summary>
+      <div class="hint-body">
+        <p>Open the SOC Triage Board and use the "SIEM Alerts by Severity" panel. You want the
+        alert with severity <code>high</code> and <code>rule_name</code>
+        <code>brute_force</code>. The <code>reasoning</code> field already states the source IP,
+        the host, the count and the window &mdash; read it first, then verify every number
+        yourself in Discover.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 2 &mdash; counting the failures</summary>
+      <div class="hint-body">
+        <p>Do not read the count off the alert alone. Open the <code>normalized-events-*</code>
+        data view in Discover and filter:</p>
+        <pre><code>event_type: "logon_failure" AND host: "web-01" AND src_ip: "&lt;ATTACKER_IP&gt;"</code></pre>
+        <p>Sort ascending by <code>@timestamp</code>. The first and last rows give you the
+        window. Break the set down by <code>user</code> in the field list to get the per-account
+        counts.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 3 &mdash; the two thresholds</summary>
+      <div class="hint-body">
+        <p>The <code>brute_force</code> rule has two configurable parameters, both in
+        <code>config/app-config.yaml</code>: <code>min_failures</code> (how many) and
+        <code>time_window_minutes</code> (over what period). Compare those two numbers against
+        the activity you measured.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 4 &mdash; firewall corroboration</summary>
+      <div class="hint-body">
+        <p>The firewall events are <code>event_type: "network_connection"</code> on host
+        <code>fw-01</code> with <code>severity: "high"</code>. They arrive from the
+        <em>same</em> attacker IP within a couple of minutes of the SSH burst, which is what
+        makes the correlation convincing: the attack is visible at two independent layers.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 5 &mdash; the non-alerting account</summary>
+      <div class="hint-body">
+        <p>Search for other <code>logon_failure</code> bursts on <code>web-01</code> from inside
+        the network. One account has repeated failures followed by a successful login. Count its
+        failures and compare with <code>min_failures</code>. Also check <em>when</em> the
+        failures occurred relative to the attacker: were they minutes or hours apart?</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 6 &mdash; shaping the finding</summary>
+      <div class="hint-body">
+        <p>A strong finding names the activity, the target, the origin, the volume, the time
+        window, the outcome, and the impact. It should also recommend the immediate next step
+        for the SOC.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ------------------------------------------------------------ skills -->
+  <section class="section section-dark">
+    <div class="section-head">
+      <span class="kicker">Skills Practised</span>
+      <h2>What this exercise builds</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card"><h3>Alert triage</h3><p class="mb0">Selecting the relevant alert from a populated queue and reading its reasoning field.</p></div>
+      <div class="card"><h3>Quantitative analysis</h3><p class="mb0">Counting events and measuring a time window precisely rather than approximately.</p></div>
+      <div class="card"><h3>Evidence correlation</h3><p class="mb0">Joining host logs and firewall logs that describe the same incident from different vantage points.</p></div>
+      <div class="card"><h3>Rule literacy</h3><p class="mb0">Understanding which detection threshold was crossed and why the alert fired.</p></div>
+      <div class="card"><h3>False-positive reasoning</h3><p class="mb0">Explaining why similar-looking activity correctly produced no alert.</p></div>
+      <div class="card"><h3>Incident reporting</h3><p class="mb0">Converting technical evidence into a concise, actionable security finding.</p></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Scenario 01</h4>
+        <ul>
+          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a href="scenario-2-successful-brute-force.html">Next: successful brute force</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Reminder</h4>
+        <ul>
+          <li>Do not guess &mdash; find the record</li>
+          <li>Every answer must cite evidence</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

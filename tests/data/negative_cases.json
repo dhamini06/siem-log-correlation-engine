@@ -1,0 +1,81 @@
+{
+  "description": "Negative correlation cases: none of these scenarios may trigger an alert.",
+  "base_time": "2024-01-15T14:00:00Z",
+  "cases": [
+    {
+      "name": "four_failures_below_threshold",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "10.0.0.31", "user": "svc_backup", "host": "web-01" },
+        { "offset_seconds": 20, "event_type": "logon_failure", "src_ip": "10.0.0.31", "user": "svc_backup", "host": "web-01" },
+        { "offset_seconds": 40, "event_type": "logon_failure", "src_ip": "10.0.0.31", "user": "svc_backup", "host": "web-01" },
+        { "offset_seconds": 60, "event_type": "logon_failure", "src_ip": "10.0.0.31", "user": "svc_backup", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "failures_spread_beyond_window",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" },
+        { "offset_seconds": 300, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" },
+        { "offset_seconds": 600, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" },
+        { "offset_seconds": 900, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" },
+        { "offset_seconds": 1200, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" },
+        { "offset_seconds": 1500, "event_type": "logon_failure", "src_ip": "10.0.0.32", "user": "tester", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "failures_split_across_source_ips",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "10.0.0.41", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 5, "event_type": "logon_failure", "src_ip": "10.0.0.42", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 10, "event_type": "logon_failure", "src_ip": "10.0.0.41", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 15, "event_type": "logon_failure", "src_ip": "10.0.0.42", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 20, "event_type": "logon_failure", "src_ip": "10.0.0.41", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 25, "event_type": "logon_failure", "src_ip": "10.0.0.42", "user": "alice", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "late_success_with_burst_below_threshold",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "10.0.0.50", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 15, "event_type": "logon_failure", "src_ip": "10.0.0.50", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 30, "event_type": "logon_failure", "src_ip": "10.0.0.50", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 45, "event_type": "logon_failure", "src_ip": "10.0.0.50", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 1200, "event_type": "logon_success", "src_ip": "10.0.0.50", "user": "alice", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "scheduled_task_powershell_thirty_minutes_after_login",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_success", "src_ip": "10.0.0.60", "user": "CORP\\Administrator", "host": "app-02" },
+        {
+          "offset_seconds": 1800,
+          "event_type": "process_create",
+          "src_ip": "unknown",
+          "user": "CORP\\Administrator",
+          "host": "app-02",
+          "process": { "name": "powershell.exe", "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "command_line": "powershell.exe -File C:\\Scripts\\Inventory.ps1" }
+        }
+      ]
+    },
+    {
+      "name": "expected_service_process_after_login",
+      "expected_rule": null,
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_success", "src_ip": "10.0.0.61", "user": "CORP\\jdoe", "host": "app-03" },
+        {
+          "offset_seconds": 30,
+          "event_type": "process_create",
+          "src_ip": "unknown",
+          "user": "NT AUTHORITY\\SYSTEM",
+          "host": "app-03",
+          "process": { "name": "svchost.exe", "path": "C:\\Windows\\System32\\svchost.exe", "command_line": "svchost.exe -k netsvcs" }
+        }
+      ]
+    }
+  ]
+}

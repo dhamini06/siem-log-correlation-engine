@@ -1,0 +1,71 @@
+# Lab #07 - Filebeat configuration: Windows Security events (Sysmon / Security log)
+# Purpose: preserve raw Windows events as evidence in Elasticsearch (raw-events-*).
+# The Python normalization engine parses the same events via
+# `python -m src.main ingest --file <exported.jsonl>`.
+#
+# Install: copy to C:\Program Files\Filebeat\filebeat.yml, then run
+#   cd "C:\Program Files\Filebeat"
+#   .\filebeat.exe install
+#   .\filebeat.exe test config
+#   .\filebeat.exe start
+
+filebeat.inputs:
+  # Windows Security channel: logon + process creation events required by Lab #07.
+  - type: windows
+    channels:
+      - name: Security
+        event_ids:
+          - 4624   # Logon success
+          - 4625   # Failed logon
+          - 4672   # Special privileges assigned (privilege escalation)
+          - 4688   # Process creation
+          - 4689   # Process termination (parent process evidence)
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: windows_sysmon
+            collector: filebeat
+
+  # Optional: Sysmon operational channel (Event ID 1 = process create, 3 = network).
+  - type: windows
+    channels:
+      - name: Microsoft-Windows-Sysmon/Operational
+        event_ids:
+          - 1
+          - 3
+          - 11
+          - 13
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: windows_sysmon
+            collector: filebeat-sysmon
+
+filebeat.processors:
+  - add_cloud_metadata: ~
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "log.offset"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://localhost:9200"]
+  index: "raw-events-%{+yyyy.MM.dd}"
+  setup.template.name: "raw-events"
+  setup.template.pattern: "raw-events-*"
+
+setup.ilm.enabled: false
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: C:\Program Files\Filebeat\logs
+
+# Production placeholders (disabled for local lab):
+# output.elasticsearch:
+#   hosts: ["https://es.example.internal:9200"]
+#   username: "${FILEBEAT_USERNAME}"
+#   password: "${FILEBEAT_PASSWORD}"
+#   ssl.certificate_authorities: ["C:\\certs\\ca.crt"]

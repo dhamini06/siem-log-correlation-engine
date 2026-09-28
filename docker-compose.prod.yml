@@ -1,0 +1,66 @@
+# Lab #07 - Production overrides (DOCUMENTED, NOT ENABLED BY DEFAULT)
+#
+# The local lab runs with xpack.security disabled. Use this file only on a real
+# deployment, and only after providing certificates and credentials:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Required before use:
+#   1. ES_USERNAME / ES_PASSWORD / KIBANA_SYSTEM_USERNAME / KIBANA_SYSTEM_PASSWORD
+#   2. TLS certificates mounted into ./certs (see the volumes below)
+#   3. Change default passwords; do not reuse lab credentials
+#
+# The Python application reads ES_HOST/ES_PORT from config/app-config.yaml or the
+# environment. For a secured cluster, point it at the TLS endpoint and add the CA
+# plus credentials to src/elasticsearch_client.py (see the commented block there).
+
+services:
+  elasticsearch:
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es/es.key
+      - xpack.security.http.ssl.certificate=certs/es/es.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/es/ca.crt
+      - xpack.license.self_generated.type=basic
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - cluster.name=siem-lab
+      - node.name=es-1
+    mem_limit: 2g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+      - ./certs/es:/usr/share/elasticsearch/config/certs:ro
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --cacert config/certs/ca.crt -u elastic:${ES_PASSWORD} https://localhost:9200/_cluster/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  kibana:
+    environment:
+      - ELASTICSEARCH_HOSTS=["https://es:9200"]
+      - ELASTICSEARCH_USERNAME=${KIBANA_SYSTEM_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca.crt
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=certificate
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_CERTIFICATE=certs/kibana/kibana.crt
+      - SERVER_SSL_KEY=certs/kibana/kibana.key
+      - XPACK_SECURITY_ENABLED=true
+    mem_limit: 1g
+    volumes:
+      - kibana-config:/usr/share/kibana/data
+      - ./certs/kibana:/usr/share/kibana/config/certs:ro
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped

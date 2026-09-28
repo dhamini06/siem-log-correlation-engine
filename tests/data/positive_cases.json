@@ -1,0 +1,59 @@
+{
+  "description": "Positive correlation cases: each scenario MUST trigger its rule.",
+  "base_time": "2024-01-15T14:00:00Z",
+  "cases": [
+    {
+      "name": "five_failed_logins_same_ip_within_5_minutes",
+      "expected_rule": "brute_force",
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "203.0.113.10", "user": "root", "host": "web-01" },
+        { "offset_seconds": 20, "event_type": "logon_failure", "src_ip": "203.0.113.10", "user": "root", "host": "web-01" },
+        { "offset_seconds": 40, "event_type": "logon_failure", "src_ip": "203.0.113.10", "user": "root", "host": "web-01" },
+        { "offset_seconds": 60, "event_type": "logon_failure", "src_ip": "203.0.113.10", "user": "root", "host": "web-01" },
+        { "offset_seconds": 80, "event_type": "logon_failure", "src_ip": "203.0.113.10", "user": "root", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "five_failures_then_success_same_ip_and_user",
+      "expected_rule": "successful_brute_force",
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_failure", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 15, "event_type": "logon_failure", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 30, "event_type": "logon_failure", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 45, "event_type": "logon_failure", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 60, "event_type": "logon_failure", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" },
+        { "offset_seconds": 120, "event_type": "logon_success", "src_ip": "203.0.113.20", "user": "alice", "host": "web-01" }
+      ]
+    },
+    {
+      "name": "login_then_cmd_exe_same_host",
+      "expected_rule": "suspicious_process_post_login",
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_success", "src_ip": "198.51.100.30", "user": "CORP\\jdoe", "host": "app-01" },
+        {
+          "offset_seconds": 25,
+          "event_type": "process_create",
+          "src_ip": "unknown",
+          "user": "CORP\\jdoe",
+          "host": "app-01",
+          "process": { "name": "cmd.exe", "path": "C:\\Windows\\System32\\cmd.exe", "command_line": "cmd.exe /c whoami" }
+        }
+      ]
+    },
+    {
+      "name": "login_then_interactive_bash_via_sudo",
+      "expected_rule": "suspicious_process_post_login",
+      "events": [
+        { "offset_seconds": 0, "event_type": "logon_success", "src_ip": "198.51.100.40", "user": "deploy", "host": "web-01" },
+        {
+          "offset_seconds": 40,
+          "event_type": "process_create",
+          "src_ip": "unknown",
+          "user": "root",
+          "host": "web-01",
+          "process": { "name": "bash", "path": "/bin/bash", "command_line": "/bin/bash -i" }
+        }
+      ]
+    }
+  ]
+}

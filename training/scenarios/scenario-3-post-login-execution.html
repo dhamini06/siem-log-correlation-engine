@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario 03 - Suspicious Post-Login Process Execution | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="../assets/css/bluecloud.css">
+</head>
+<body data-page="scenario-3" data-scenario="scenario-3">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="../assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../instructions.html">How to Investigate</a>
+      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 03
+    </div>
+    <div class="hero-meta" style="margin:0 0 0.6rem">
+      <span class="chip chip-orange">Scenario 03</span>
+      <span class="diff diff-medium">Medium</span>
+      <span class="chip chip-blue">Rule: suspicious_process_post_login</span>
+      <span class="chip chip-light">Expected severity: high</span>
+    </div>
+    <h1>Suspicious Post-Login Process Execution</h1>
+    <p class="sub">
+      A Windows account authenticated, then launched a command shell seconds later.
+      Measure the gap, read the command line, and explain why it matters.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap narrow">
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Incident Brief</span>
+      <h2>Objective and background</h2>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-title">Security objective</span>
+      <p>Establish that a user authenticated and then executed a suspicious process on the same
+      host within the detection window, and determine from the command line what the actor was
+      attempting.</p>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-title">Incident story</span>
+      <p>
+        Endpoint telemetry on a Windows application server shows an account signing in and then
+        immediately spawning a shell. There is a high-severity alert on the SOC Triage Board for
+        this. Unlike Scenarios 01 and 02 there are no preceding failed logons here &mdash; the
+        authentication itself succeeded legitimately, and the risk is in what happened
+        <em>after</em> it.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>What you know at the start</h3>
+      <ul>
+        <li>Windows process creation is logged as <code>process_create</code> with a <code>process</code> object.</li>
+        <li>The host in question is a Windows application server, not the Linux web server.</li>
+        <li>The alert you need is on a different host from Scenarios 01 and 02.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent" style="margin-top:1rem">
+      <h3>Investigation task</h3>
+      <ol class="steps">
+        <li><strong>Locate the alert</strong>It is a <code>suspicious_process_post_login</code> alert on a Windows host.</li>
+        <li><strong>Measure the timing</strong>Find the logon and the process creation. What is the exact gap, and how does it compare to the rule's window?</li>
+        <li><strong>Read the command line</strong>The full argument string is the most important evidence in this scenario.</li>
+        <li><strong>Interpret the commands</strong>Explain what each part of the command line is trying to achieve.</li>
+        <li><strong>Check the parent process</strong>The <code>parent_name</code> field tells you how the shell was launched.</li>
+        <li><strong>State the finding</strong>What does this sequence indicate about the account's intent?</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Evidence</span>
+      <h2>Answer every question</h2>
+    </div>
+
+    <ol class="qlist">
+      <li>
+        <strong>Which host and which user account are involved, and from which source IP did the login come?</strong>
+        <div class="answer-box"><textarea data-question="q1" placeholder="Host, user, src_ip"></textarea></div>
+        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+      </li>
+      <li>
+        <strong>What was the exact timestamp of the successful logon, and of the suspicious process creation?</strong>
+        <div class="answer-box"><textarea data-question="q2" placeholder="Both timestamps"></textarea></div>
+      </li>
+      <li>
+        <strong>How many seconds elapsed between the logon and the process creation? What is the rule's configured window?</strong>
+        <div class="answer-box"><textarea data-question="q3" placeholder="Elapsed seconds + window"></textarea></div>
+      </li>
+      <li>
+        <strong>What process was created, and what was its full command line?</strong>
+        <div class="answer-box"><textarea data-question="q4" placeholder="Process name + full command line"></textarea></div>
+      </li>
+      <li>
+        <strong>Break the command line into its separate operations. What is each part trying to do?</strong>
+        <div class="answer-box"><textarea data-question="q5" placeholder="Operation by operation"></textarea></div>
+      </li>
+      <li>
+        <strong>Which parent process launched the shell, and what does that indicate about the session type?</strong>
+        <div class="answer-box"><textarea data-question="q6" placeholder="parent_name + interpretation"></textarea></div>
+      </li>
+      <li>
+        <strong>Why does the SIEM treat this as suspicious? Name the rule and the two conditions it checks.</strong>
+        <div class="answer-box"><textarea data-question="q7" placeholder="Rule + conditions"></textarea></div>
+      </li>
+      <li>
+        <strong>Are the two events on this host related to the brute force activity in Scenarios 01 and 02? How do you know?</strong>
+        <div class="answer-box"><textarea data-question="q8" placeholder="Correlation or independence, with reasons"></textarea></div>
+      </li>
+      <li>
+        <strong>State the final security finding and the recommended immediate response.</strong>
+        <div class="answer-box"><textarea data-question="q9" placeholder="Finding + response"></textarea></div>
+      </li>
+    </ol>
+
+    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
+      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+      <a class="btn btn-blue" href="scenario-4-linux-privilege-escalation.html">Next scenario</a>
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+    </div>
+    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+      <span class="callout-title">Scenario marked complete</span>
+      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Progressive Hints</span>
+      <h2>Stuck? Reveal one step at a time.</h2>
+    </div>
+
+    <details class="hint">
+      <summary>Hint 1 &mdash; finding the right alert</summary>
+      <div class="hint-body">
+        <p>The SOC Triage Board contains <em>two</em> alerts from the
+        <code>suspicious_process_post_login</code> rule. Scenario 04 is the other one. This
+        scenario is the Windows host &mdash; look at the "Suspicious Hosts by Alert Count"
+        panel, or filter the alerts by <code>host</code> for a Windows-looking name such as
+        <code>app-01</code> rather than <code>web-01</code>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 2 &mdash; the timing evidence</summary>
+      <div class="hint-body">
+        <p>The alert's <code>first_seen</code> is the logon and <code>last_seen</code> is the
+        process creation &mdash; the SIEM already recorded the delta for you. Subtract them to
+        get the gap in seconds. The rule parameter is <code>time_after_login_minutes</code> in
+        <code>config/app-config.yaml</code>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 3 &mdash; reading the command line</summary>
+      <div class="hint-body">
+        <p>Expand the <code>process</code> object on the evidence event and read
+        <code>command_line</code> in full. Shell chains are usually separated by
+        <code>&amp;&amp;</code>. Read the raw Windows event as well: the
+        <code>raw_event</code> field contains the original 4688 record.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 4 &mdash; interpreting the commands</summary>
+      <div class="hint-body">
+        <p>Consider each part separately. One command identifies the current account and its
+        privilege level. The other modifies the local <code>administrator</code> account &mdash;
+        consider what enabling or re-enabling a built-in administrator account is used for after
+        an attacker already has a foothold.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 5 &mdash; the parent process</summary>
+      <div class="hint-body">
+        <p><code>process.parent_name</code> and <code>parent_pid</code> are on the same event.
+        Think about which Windows component launches a shell directly at logon, and contrast it
+        with the shells that appear in the benign <code>process_create</code> events on the same
+        host.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 6 &mdash; is it related to the brute force?</summary>
+      <div class="hint-body">
+        <p>Compare the hosts, the users and the source IPs. Then compare the timing. If they do
+        not share an identity or a source, they are separate activity and you should report them
+        as such &mdash; do not merge unrelated alerts into a single story.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section section-dark">
+    <div class="section-head">
+      <span class="kicker">Skills Practised</span>
+      <h2>What this exercise builds</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card"><h3>Command-line analysis</h3><p class="mb0">Extracting intent from process arguments &mdash; a core analyst skill on any platform.</p></div>
+      <div class="card"><h3>Sub-second forensics</h3><p class="mb0">Using millisecond timestamps to prove causality between two events.</p></div>
+      <div class="card"><h3>Process lineage</h3><p class="mb0">Reading parent process relationships to understand how execution started.</p></div>
+      <div class="card"><h3>Windows knowledge</h3><p class="mb0">Understanding built-in accounts, shells and the meaning of interactive logons.</p></div>
+      <div class="card"><h3>Rule mechanics</h3><p class="mb0">Knowing which allowlist and denylist the rule applies to a process name.</p></div>
+      <div class="card"><h3>Independence checking</h3><p class="mb0">Deciding whether two alerts belong to one incident or two.</p></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Scenario 03</h4>
+        <ul>
+          <li><a href="scenario-2-successful-brute-force.html">Previous: successful brute force</a></li>
+          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Reminder</h4>
+        <ul>
+          <li>Do not guess &mdash; find the record</li>
+          <li>Every answer must cite evidence</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

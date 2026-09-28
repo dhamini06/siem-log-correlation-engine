@@ -1,0 +1,64 @@
+# Lab #07 - Filebeat configuration: Linux auth.log (sshd, sudo, PAM)
+# Ship raw authentication logs to Elasticsearch for evidence retention.
+# Parsing and normalization are performed by the Python engine.
+#
+#   sudo cp config/filebeat/filebeat-linux.yml /etc/filebeat/filebeat.yml
+#   sudo filebeat test config -c /etc/filebeat/filebeat.yml
+#   sudo systemctl enable --now filebeat
+
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/auth.log
+      - /var/log/secure
+    # Auth lines are single-line records; keep multiline off.
+    multiline.enabled: false
+    scan_frequency: 10s
+    close_inactive: 5m
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: linux_auth
+            collector: filebeat
+
+  # auditd execve events provide process execution evidence on Linux hosts.
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/audit/audit.log
+    include_lines:
+      - 'type=EXECVE'
+      - 'type=USER_CMD'
+    processors:
+      - add_host_metadata: ~
+      - add_fields:
+          target: siem
+          fields:
+            source_type: linux_auth
+            collector: filebeat-auditd
+
+filebeat.processors:
+  - add_cloud_metadata: ~
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "log.offset"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://localhost:9200"]
+  index: "raw-events-%{+yyyy.MM.dd}"
+  setup.template.name: "raw-events"
+  setup.template.pattern: "raw-events-*"
+
+setup.ilm.enabled: false
+logging.level: info
+logging.to_files: true
+
+# Production placeholders (disabled for local lab):
+# output.elasticsearch:
+#   hosts: ["https://es.example.internal:9200"]
+#   username: "${FILEBEAT_USERNAME}"
+#   password: "${FILEBEAT_PASSWORD}"
+#   ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]

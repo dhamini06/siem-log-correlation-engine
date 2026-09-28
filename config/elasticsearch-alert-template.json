@@ -1,0 +1,32 @@
+{
+  "index_patterns": ["security-alerts-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "true",
+      "properties": {
+        "rule_name": { "type": "keyword" },
+        "severity": { "type": "keyword" },
+        "timestamp": { "type": "date" },
+        "first_seen": { "type": "date" },
+        "last_seen": { "type": "date" },
+        "src_ip": { "type": "ip" },
+        "dst_ip": { "type": "ip" },
+        "user": { "type": "keyword" },
+        "host": { "type": "keyword" },
+        "evidence_event_ids": { "type": "keyword" },
+        "evidence_count": { "type": "integer" },
+        "reasoning": { "type": "text" },
+        "dedup_key": { "type": "keyword" },
+        "dedup_window_minutes": { "type": "integer" },
+        "false_positive_feedback": { "type": "keyword" }
+      }
+    },
+    "aliases": {}
+  }
+}

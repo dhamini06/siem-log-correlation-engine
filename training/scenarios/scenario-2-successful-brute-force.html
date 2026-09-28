@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scenario 02 - Successful Login After Brute Force | BlueCloud Softech Solutions SIEM Lab</title>
+<link rel="stylesheet" href="../assets/css/bluecloud.css">
+</head>
+<body data-page="scenario-2" data-scenario="scenario-2">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="../assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="../index.html">Home</a>
+      <a href="../instructions.html">How to Investigate</a>
+      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 02
+    </div>
+    <div class="hero-meta" style="margin:0 0 0.6rem">
+      <span class="chip chip-orange">Scenario 02</span>
+      <span class="diff diff-medium">Medium</span>
+      <span class="chip chip-blue">Rule: successful_brute_force</span>
+      <span class="chip chip-light">Expected severity: critical</span>
+    </div>
+    <h1>Successful Login After Brute Force</h1>
+    <p class="sub">
+      The same failure pattern as Scenario 01 &mdash; except this time the attacker got in.
+      Correlate the burst to the success and explain the escalation.
+    </p>
+  </div>
+</section>
+
+<main id="main">
+<div class="wrap narrow">
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Incident Brief</span>
+      <h2>Objective and background</h2>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-title">Security objective</span>
+      <p>Prove that a failed-login burst ended in a <em>successful</em> authentication from the
+      same source and for the same account, quantify the whole sequence, and state the
+      resulting impact.</p>
+    </div>
+
+    <div class="callout callout-crit">
+      <span class="callout-title">Incident story</span>
+      <p>
+        An account owner reports that a colleague could not log in remotely and had to use the
+        console instead. The SIEM has raised a <strong>critical</strong> alert. This is the
+        single most important alert type in the lab: in Scenario 01 the attack failed, here it
+        appears to have <strong>succeeded</strong>. Your job is to prove that, and to explain
+        why the SIEM raised critical rather than high.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>What you know at the start</h3>
+      <ul>
+        <li>One alert on the board is <code>critical</code> &mdash; the only one.</li>
+        <li>Authentication failures and successes both appear as events with the same <code>src_ip</code>.</li>
+        <li>You have not yet confirmed whether the successful login came from the attacker or from the legitimate user.</li>
+      </ul>
+    </div>
+
+    <div class="card card-accent-orange" style="margin-top:1rem">
+      <h3>Investigation task</h3>
+      <ol class="steps">
+        <li><strong>Locate the critical alert</strong>Find it on the SOC Triage Board and read its <code>reasoning</code>.</li>
+        <li><strong>Separate it from Scenario 01</strong>The lab contains two brute force episodes. Make sure you are working the one that escalated.</li>
+        <li><strong>Build the sequence</strong>List every failed logon in order, then the success, with timestamps.</li>
+        <li><strong>Measure the outcome</strong>How long between the first failure and the success? What are the rule's two time windows?</li>
+        <li><strong>Explain the escalation</strong>Why does this alert read <code>critical</code> while the other reads <code>high</code>?</li>
+        <li><strong>State the impact</strong>The attacker now has a valid session. What should the SOC do first?</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Evidence</span>
+      <h2>Answer every question</h2>
+    </div>
+
+    <ol class="qlist">
+      <li>
+        <strong>Which alert escalated to critical? Give its rule name, source IP, host and target account.</strong>
+        <div class="answer-box"><textarea data-question="q1" placeholder="Rule, src_ip, host, user"></textarea></div>
+        <div id="saved-note" class="saved-note">Saved in this browser only.</div>
+      </li>
+      <li>
+        <strong>List the timestamps of every failed logon in this attack, in order.</strong>
+        <div class="answer-box"><textarea data-question="q2" placeholder="Ordered timestamps (UTC)"></textarea></div>
+      </li>
+      <li>
+        <strong>At what exact time did the successful login occur, and how many seconds passed between the first failure and that success?</strong>
+        <div class="answer-box"><textarea data-question="q3" placeholder="Success time + elapsed seconds"></textarea></div>
+      </li>
+      <li>
+        <strong>How many events are in the alert's evidence set, and what does that number consist of?</strong>
+        <div class="answer-box"><textarea data-question="q4" placeholder="Count + composition"></textarea></div>
+      </li>
+      <li>
+        <strong>Why is this alert <code>critical</code> and not <code>high</code>? Name the rule and the condition that caused the escalation.</strong>
+        <div class="answer-box"><textarea data-question="q5" placeholder="Escalation logic"></textarea></div>
+      </li>
+      <li>
+        <strong>How does this attack differ from the Scenario 01 brute force? Compare source IP, target account, outcome and severity.</strong>
+        <div class="answer-box"><textarea data-question="q6" placeholder="Comparison"></textarea></div>
+      </li>
+      <li>
+        <strong>What does the success event's <code>process</code> field tell you about how the session was established?</strong>
+        <div class="answer-box"><textarea data-question="q7" placeholder="Protocol / method evidence"></textarea></div>
+      </li>
+      <li>
+        <strong>What is the security impact of a successful brute force, and what are the first three containment actions you would take?</strong>
+        <div class="answer-box"><textarea data-question="q8" placeholder="Impact + containment steps"></textarea></div>
+      </li>
+      <li>
+        <strong>State the final security finding, including the evidence that proves the account was compromised rather than merely targeted.</strong>
+        <div class="answer-box"><textarea data-question="q9" placeholder="Your security finding"></textarea></div>
+      </li>
+    </ol>
+
+    <div style="margin-top:1.4rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center">
+      <button class="btn btn-primary" id="mark-done" type="button">Mark scenario complete</button>
+      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+      <a class="btn btn-blue" href="scenario-3-post-login-execution.html">Next scenario</a>
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+    </div>
+    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+      <span class="callout-title">Scenario marked complete</span>
+      <p class="mb0">Your notes are stored in this browser. Compare your answers with the instructor key before moving on.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Progressive Hints</span>
+      <h2>Stuck? Reveal one step at a time.</h2>
+    </div>
+
+    <details class="hint">
+      <summary>Hint 1 &mdash; there are two brute force episodes</summary>
+      <div class="hint-body">
+        <p>Open the "Top Source IPs by Alert Count" panel. Scenario 01's attacker and this
+        scenario's attacker are <em>different</em> IP addresses. Use the
+        <code>SIEM Alerts by Severity</code> panel and the time picker to isolate the
+        <code>critical</code> alert, then confirm its <code>rule_name</code>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 2 &mdash; reading the escalation</summary>
+      <div class="hint-body">
+        <p>Read the two <code>reasoning</code> sentences side by side. One says the threshold was
+        exceeded; the other says the attack <em>succeeded</em> and states the number of failed
+        logons that preceded it. The configuration parameter that governs the window is
+        <code>success_window_minutes</code>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 3 &mdash; the evidence set</summary>
+      <div class="hint-body">
+        <p>Do not assume the evidence count. Open the alert and count the values in
+        <code>evidence_event_ids</code>, then load them:</p>
+        <pre><code>_id: ("&lt;FIRST_ID&gt;", "&lt;SECOND_ID&gt;", ...)</code></pre>
+        <p>Every one of them should belong to the same attack. Verify by checking that they share
+        the same <code>src_ip</code> and <code>host</code>.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 4 &mdash; the protocol detail</summary>
+      <div class="hint-body">
+        <p>Look at the <code>process</code> object of the successful event, and at its
+        <code>raw_event</code>. It names the service that handled the login and the authentication
+        method. On the failed events there is no such process, because no session was ever
+        created.</p>
+      </div>
+    </details>
+
+    <details class="hint">
+      <summary>Hint 5 &mdash; containment</summary>
+      <div class="hint-body">
+        <p>Think about what an attacker with a valid shell session can do next, and what the SOC
+        must stop first: cut off the source, invalidate the credential, preserve the session and
+        host state for forensics.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="section section-dark">
+    <div class="section-head">
+      <span class="kicker">Skills Practised</span>
+      <h2>What this exercise builds</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card"><h3>Escalation reasoning</h3><p class="mb0">Understanding why a detection escalates in severity when the outcome changes.</p></div>
+      <div class="card"><h3>Sequence reconstruction</h3><p class="mb0">Ordering events in time to establish cause and effect.</p></div>
+      <div class="card"><h3>Comparative analysis</h3><p class="mb0">Contrasting two similar-looking attacks that ended differently.</p></div>
+      <div class="card"><h3>Impact assessment</h3><p class="mb0">Translating a technical detection into business and security consequence.</p></div>
+      <div class="card"><h3>Incident response</h3><p class="mb0">Prioritising containment and evidence-preservation actions.</p></div>
+      <div class="card"><h3>Precision</h3><p class="mb0">Producing exact counts and deltas rather than approximate descriptions.</p></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+      </div>
+      <div>
+        <h4>Scenario 02</h4>
+        <ul>
+          <li><a href="scenario-1-brute-force.html">Previous: brute force</a></li>
+          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-link>Kibana</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Reminder</h4>
+        <ul>
+          <li>Do not guess &mdash; find the record</li>
+          <li>Every answer must cite evidence</li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../assets/js/lab.js"></script>
+<script>
+  (function () {
+    var ES = "http://localhost:9200";
+    var KIBANA = "http://localhost:5601";
+    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
+    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
+    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "index_patterns": ["normalized-events-*"],
+  "priority": 200,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s",
+      "mapping.total_fields.limit": 100
+    },
+    "mappings": {
+      "dynamic": "true",
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "ingest_timestamp": { "type": "date" },
+        "source_type": { "type": "keyword" },
+        "event_type": { "type": "keyword" },
+        "host": { "type": "keyword" },
+        "user": { "type": "keyword" },
+        "src_ip": { "type": "ip" },
+        "dst_ip": { "type": "ip" },
+        "port": { "type": "integer" },
+        "protocol": { "type": "keyword" },
+        "severity": { "type": "keyword" },
+        "message": { "type": "text" },
+        "raw_event": {
+          "type": "text",
+          "analyzer": "standard",
+          "search_analyzer": "standard"
+        },
+        "parser_version": { "type": "keyword" },
+        "process": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "keyword" },
+            "path": { "type": "keyword", "ignore_above": 512 },
+            "pid": { "type": "integer" },
+            "parent_name": { "type": "keyword" },
+            "parent_pid": { "type": "integer" },
+            "command_line": { "type": "text" }
+          }
+        }
+      }
+    },
+    "aliases": {}
+  }
+}
