@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SIEM Log Correlation Engine | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
-<meta name="description" content="BlueCloud Softech Solutions cybersecurity training lab: investigate SIEM alerts in Kibana across five practical incident scenarios.">
+<meta name="description" content="BlueCloud Softech Solutions cybersecurity training lab: work a real SIEM alert queue in Kibana across five practical incident scenarios.">
 <link rel="stylesheet" href="assets/css/bluecloud.css">
 </head>
 <body data-page="index">
@@ -23,20 +23,40 @@
       <a href="index.html">Home</a>
       <a href="instructions.html">How to Investigate</a>
       <a href="#scenarios">Scenarios</a>
-      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
     </nav>
   </div>
 </header>
 
+<!-- ====================================================== 1. LAB MISSION -->
 <section class="hero">
   <div class="wrap">
     <span class="eyebrow">Lab #07 &middot; Security Information &amp; Event Management</span>
     <h1>SIEM Log Correlation Engine</h1>
-    <p class="lede">
-      A hands-on security operations lab. You will read real alerts, pull the raw
-      authentication and process events behind them, and reach an evidence-based
-      conclusion about what actually happened on the network.
+    <p class="lede role-line">
+      <strong>You are a junior SOC analyst.</strong> Your job is to investigate suspicious activity
+      using security alerts and the logs behind them &mdash; and to prove, with evidence, what
+      actually happened.
     </p>
+
+    <div class="panel">
+      <span class="panel-title">In this lab you will</span>
+      <ol class="tick-list">
+        <li>Find a security alert</li>
+        <li>Understand why it fired</li>
+        <li>Investigate the underlying events</li>
+        <li>Correlate evidence from different sources</li>
+        <li>Determine what happened</li>
+        <li>Write a concise SOC finding</li>
+      </ol>
+    </div>
+
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="scenarios/scenario-1-brute-force.html">Start Investigation</a>
+      <a class="btn btn-ghost" data-kibana-dash>Open SOC Dashboard</a>
+      <a class="btn btn-ghost" data-kibana-link>Investigate events in Kibana</a>
+    </div>
+
     <div class="hero-meta">
       <span class="chip chip-blue">Elasticsearch 8.13</span>
       <span class="chip chip-blue">Kibana 8.13</span>
@@ -44,17 +64,147 @@
       <span class="chip chip-blue" id="progress-summary" data-total="5">0 / 5 scenarios completed</span>
       <span class="chip chip-light" data-es-status>Checking Elasticsearch...</span>
     </div>
-    <div class="hero-actions">
-      <a class="btn btn-primary" href="instructions.html">Start Investigation</a>
-      <a class="btn btn-ghost" data-kibana-link>Open SIEM Dashboard</a>
-    </div>
   </div>
 </section>
 
 <main id="main">
 
-  <!-- ------------------------------------------------------ objective -->
+  <!-- ==================================================== 2. SIEM BASICS -->
   <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">SIEM basics</span>
+        <h2>Four words you need before you start</h2>
+        <p>This is the whole theory for today. Everything else you learn by doing.</p>
+      </div>
+      <div class="grid grid-2 basics">
+
+        <div class="card basic">
+          <span class="basic-tag">01</span>
+          <h3>What is a security event?</h3>
+          <p>One recorded security activity. This lab stores each one as a
+          <code>normalized-events-*</code> document.</p>
+          <p class="example">For example: <em>SSH login failed for user dpatel</em>. That is a
+          single event.</p>
+          <p class="mb0 rule-line">One event = one observed activity.</p>
+        </div>
+
+        <div class="card basic">
+          <span class="basic-tag">02</span>
+          <h3>What is an alert?</h3>
+          <p>An alert is created when the SIEM detects a suspicious <em>pattern</em> across
+          events &mdash; not from any single event.</p>
+          <p class="example">For example: several failed logins from the same source IP in a
+          short window raises a <strong>brute force</strong> alert.</p>
+          <p class="mb0 rule-line">Alert = a pattern the SIEM decided was worth your attention.</p>
+        </div>
+
+        <div class="card basic">
+          <span class="basic-tag">03</span>
+          <h3>What is correlation?</h3>
+          <p>Correlation means connecting several related events to see the bigger security
+          story that no single event shows.</p>
+          <p class="example">For example: a run of failed logins
+          <strong>plus</strong> a later successful login from the same address suggests the
+          attack worked.</p>
+          <p class="mb0 rule-line">Events in sequence tell a story. One event alone does not.</p>
+        </div>
+
+        <div class="card basic">
+          <span class="basic-tag">04</span>
+          <h3>What is the SOC Triage Board vs Discover?</h3>
+          <p>Two views of the same lab data, and they answer different questions.</p>
+          <p class="example"><strong>SOC Triage Board</strong> tells you <em>what</em> was
+          detected. <strong>Kibana Discover</strong> lets you investigate <em>why</em> it was
+          detected, event by event.</p>
+          <p class="mb0 rule-line">Board = your alert queue. Discover = the evidence behind it.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================== 3. YOUR TWO TOOLS -->
+  <section class="section section-alt">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Your two investigation tools</span>
+        <h2>Start at the board, prove it in Discover</h2>
+        <p>You never need to explore Kibana's home screen. Read your scenario brief first,
+        then use these two to find and prove the evidence.</p>
+      </div>
+
+      <div class="grid grid-2 workflow">
+        <div class="card workflow-step">
+          <span class="step-num" aria-hidden="true">1</span>
+          <div class="step-body">
+            <span class="step-label">Your alert queue</span>
+            <h3>SOC Triage Board</h3>
+            <p>Find and prioritise the security alerts this SIEM raised. Once you have read
+            your scenario, come here to find the alert it is about.</p>
+            <p class="tool-answers">Tells you <strong>what was detected</strong>.</p>
+            <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
+          </div>
+        </div>
+        <div class="card workflow-step">
+          <span class="step-num" aria-hidden="true">2</span>
+          <div class="step-body">
+            <span class="step-label">The evidence behind it</span>
+            <h3>Kibana Discover</h3>
+            <p>Inspect the individual events behind an alert &mdash; already pointed at the
+            <code>normalized-events-*</code> data view for you.</p>
+            <p class="tool-answers">Lets you investigate <strong>why it was detected</strong>.</p>
+            <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================== 4. ALERT TO EVIDENCE -->
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">The core idea of this lab</span>
+        <h2>How an alert connects to the evidence</h2>
+        <p>The alert tells you what the SIEM detected. The underlying events let you prove what
+        happened. That link is the whole job.</p>
+      </div>
+      <div class="grid grid-2 chain-wrap">
+        <ol class="chain">
+          <li class="chain-step"><span class="n" aria-hidden="true">1</span>
+            <div><strong>Security alert</strong><br><span class="muted">Raised by a correlation
+            rule. Gives you a rule name, a severity, a <code>reasoning</code> sentence and a
+            window.</span></div></li>
+          <li class="chain-step"><span class="n" aria-hidden="true">2</span>
+            <div><strong>Evidence event IDs</strong><br><span class="muted">The alert's
+            <code>evidence_event_ids</code> field lists the exact event documents it was built
+            from.</span></div></li>
+          <li class="chain-step"><span class="n" aria-hidden="true">3</span>
+            <div><strong>Normalized events</strong><br><span class="muted">Look those IDs up in
+            Discover to read the real events, and widen the time range to see the surrounding
+            activity.</span></div></li>
+          <li class="chain-step"><span class="n" aria-hidden="true">4</span>
+            <div><strong>Raw source evidence</strong><br><span class="muted">Each event keeps
+            its untouched <code>raw_event</code> log line, so you can check the SIEM did not
+            misread it.</span></div></li>
+          <li class="chain-step"><span class="n" aria-hidden="true">5</span>
+            <div><strong>SOC finding</strong><br><span class="muted">Write what the evidence
+            supports: activity, target, origin, volume, window, outcome and impact.</span></div></li>
+        </ol>
+
+        <div class="callout callout-crit" style="align-self:start">
+          <span class="callout-title">The alert is a claim, not proof</span>
+          <p>An alert says the SIEM <em>detected</em> a pattern. It is your job to open the
+          events and confirm it. If the numbers in the alert do not match what you find in
+          Discover, trust the events and say so.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== 5. LAB OBJECTIVE -->
+  <section class="section section-dark">
     <div class="wrap">
       <div class="section-head">
         <span class="kicker">Lab Objective</span>
@@ -80,11 +230,35 @@
           </p>
         </div>
       </div>
+      <div class="grid grid-4" style="margin-top:1.1rem">
+        <div class="card stat"><div class="n">50</div><div class="l">Normalized events</div></div>
+        <div class="card stat"><div class="n">3</div><div class="l">Correlation rules</div></div>
+        <div class="card stat"><div class="n">4</div><div class class="l">Alerts raised</div></div>
+        <div class="card stat"><div class="n">5</div><div class="l">Scenarios</div></div>
+      </div>
+      <div class="grid grid-2" style="margin-top:1.1rem">
+        <div class="card">
+          <h3>Where the evidence lives</h3>
+          <ul class="toc">
+            <li><a data-kibana-alerts>security-alerts-* &mdash; correlation results (open in Discover)</a></li>
+            <li><a data-kibana-link>normalized-events-* &mdash; parsed events (open in Discover)</a></li>
+            <li><code>raw_event</code> &mdash; the original untouched log line on every event</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>The three detection rules</h3>
+          <ul class="toc">
+            <li><strong>brute_force</strong> &mdash; &ge;5 failed logons, one source IP, 5 minutes &rarr; high</li>
+            <li><strong>successful_brute_force</strong> &mdash; burst plus a success &rarr; critical</li>
+            <li><strong>suspicious_process_post_login</strong> &mdash; login then risky process within 2 minutes &rarr; high</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- -------------------------------------------------- what you learn -->
-  <section class="section section-alt">
+  <!-- ============================================= 6. WHAT YOU WILL LEARN -->
+  <section class="section">
     <div class="wrap">
       <div class="section-head">
         <span class="kicker">Learning Outcomes</span>
@@ -119,45 +293,37 @@
     </div>
   </section>
 
-  <!-- ------------------------------------------------ how it fits together -->
-  <section class="section section-dark">
+  <!-- ==================================================== 7. WALKTHROUGH -->
+  <section class="section section-alt">
     <div class="wrap">
       <div class="section-head">
-        <span class="kicker">How It Fits Together</span>
-        <h2>One SIEM, five investigations</h2>
-        <p class="lede">
-          The five scenarios are not separate systems. They are five investigations
-          performed against the same running SIEM and the same alert data.
-        </p>
+        <span class="kicker">First time here?</span>
+        <h2>Your first investigation, end to end</h2>
+        <p>Eight steps. This is the whole method, and every scenario reuses it. Start on the
+        scenario page &mdash; it is your brief, and it tells you what to investigate.</p>
       </div>
-      <div class="grid grid-4">
-        <div class="card stat"><div class="n">50</div><div class="l">Normalized events</div></div>
-        <div class="card stat"><div class="n">3</div><div class="l">Correlation rules</div></div>
-        <div class="card stat"><div class="n">4</div><div class="l">Alerts raised</div></div>
-        <div class="card stat"><div class="n">5</div><div class="l">Scenarios</div></div>
+      <div class="grid grid-2">
+        <ol class="steps">
+          <li><strong>Find the alert</strong>Open the SOC Triage Board and match an alert to your brief.</li>
+          <li><strong>Read it</strong>Note the severity, rule name, <code>reasoning</code> and <code>evidence_event_ids</code>.</li>
+          <li><strong>Open Discover</strong>Switch to the <code>normalized-events-*</code> data view.</li>
+          <li><strong>Pull the evidence</strong>Find the events the alert references, by <code>_id</code> or by source IP and host.</li>
+        </ol>
+        <ol class="steps steps-5">
+          <li><strong>Widen the time range</strong>If the sequence looks cut off, widen the time picker.</li>
+          <li><strong>Correlate</strong>Check what else touched that host or user, including the firewall records.</li>
+          <li><strong>Answer the questions</strong>Type what you found, with the record that proves it.</li>
+          <li><strong>Write the finding</strong>State the security conclusion the evidence supports.</li>
+        </ol>
       </div>
-      <div class="grid grid-2" style="margin-top:1.1rem">
-        <div class="card">
-          <h3>Where the evidence lives</h3>
-          <ul class="toc">
-            <li><a data-kibana-link>security-alerts-* &mdash; correlation results (Kibana data view)</a></li>
-            <li><a data-kibana-link>normalized-events-* &mdash; parsed events (Kibana data view)</a></li>
-            <li><code>raw_event</code> &mdash; the original untouched log line on every event</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h3>The three detection rules</h3>
-          <ul class="toc">
-            <li><strong>brute_force</strong> &mdash; &ge;5 failed logons, one source IP, 5 minutes &rarr; high</li>
-            <li><strong>successful_brute_force</strong> &mdash; burst plus a success &rarr; critical</li>
-            <li><strong>suspicious_process_post_login</strong> &mdash; login then risky process within 2 minutes &rarr; high</li>
-          </ul>
-        </div>
+      <div class="hero-actions" style="margin-top:1.2rem">
+        <a class="btn btn-primary" data-kibana-dash>Open SOC Triage Board</a>
+        <a class="btn btn-outline" href="instructions.html">Read the full investigation guide</a>
       </div>
     </div>
   </section>
 
-  <!-- -------------------------------------------------------- scenarios -->
+  <!-- ==================================================== 8. SCENARIOS -->
   <section class="section" id="scenarios">
     <div class="wrap">
       <div class="section-head">
@@ -269,7 +435,7 @@
     </div>
   </section>
 
-  <!-- ------------------------------------------------------ instructions -->
+  <!-- ============================================== 9. BASIC INSTRUCTIONS -->
   <section class="section section-alt">
     <div class="wrap">
       <div class="section-head">
@@ -293,13 +459,12 @@
         <div class="card">
           <h3>The student workflow</h3>
           <ol class="steps">
-            <li><strong>Read the introduction</strong>Know the schema and the three rules.</li>
+            <li><strong>Read this page</strong>Know the four basics and your two tools.</li>
             <li><strong>Open the SOC Triage Board</strong>See the alert population.</li>
-            <li><strong>Investigate the alerts</strong>Drill into evidence events.</li>
-            <li><strong>Open your scenario</strong>Read the incident brief.</li>
-            <li><strong>Work in Kibana</strong>Use the data views and raw events.</li>
+            <li><strong>Pick a scenario</strong>Read the incident brief.</li>
+            <li><strong>Investigate in Discover</strong>Pull the alert's evidence events.</li>
             <li><strong>Answer the questions</strong>One finding at a time.</li>
-            <li><strong>Record evidence and finding</strong>Write what the data proves.</li>
+            <li><strong>Check, then write the finding</strong>What the data proves.</li>
           </ol>
         </div>
       </div>
@@ -336,15 +501,15 @@
         <ul>
           <li><a href="instructions.html">How to investigate</a></li>
           <li><a href="#scenarios">Practice scenarios</a></li>
-          <li><a data-kibana-link>Open SIEM Dashboard</a></li>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
         </ul>
       </div>
       <div>
         <h4>Services</h4>
         <ul>
+          <li><a data-kibana-link>Kibana Discover</a></li>
+          <li><a data-kibana-alerts>Discover alerts</a></li>
           <li><a data-es-link>Elasticsearch</a></li>
-          <li><a data-kibana-link>Kibana</a></li>
-          <li><a data-kibana-dash>SOC Triage Board</a></li>
         </ul>
       </div>
       <div>
@@ -365,14 +530,31 @@
 
 <script src="assets/js/lab.js"></script>
 <script>
-  /* Single source of truth for the lab endpoints, so the URL only lives here. */
+  /* Single source of truth for the lab endpoints, so each URL lives only here.
+     data-kibana-dash  -> the SOC Triage Board, the student's alert queue
+     data-kibana-link  -> Discover, already pointed at normalized-events-*
+     data-kibana-alerts-> Discover, already pointed at security-alerts-*
+     data-es-link      -> the Elasticsearch API
+     Students are never sent to Kibana's generic home screen. */
   (function () {
     var ES = "http://localhost:9200";
     var KIBANA = "http://localhost:5601";
     var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
-    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+    function discover(dataViewId) {
+      return KIBANA + "/app/discover#/?_g=(time:(from:now-24h,to:now))" +
+             "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView))";
+    }
+    var EVENTS = discover("siem-normalized-events");
+    var ALERTS = discover("siem-security-alerts");
+    function wire(selector, url) {
+      document.querySelectorAll(selector).forEach(function (el) {
+        el.href = url; el.target = "_blank"; el.rel = "noopener";
+      });
+    }
+    wire("[data-kibana-dash]", DASH);
+    wire("[data-kibana-link]", EVENTS);
+    wire("[data-kibana-alerts]", ALERTS);
+    wire("[data-es-link]", ES);
   })();
 </script>
 </body>

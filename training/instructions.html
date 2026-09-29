@@ -22,7 +22,7 @@
       <a href="index.html">Home</a>
       <a href="instructions.html">How to Investigate</a>
       <a href="index.html#scenarios">Scenarios</a>
-      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
     </nav>
   </div>
 </header>
@@ -204,6 +204,9 @@
     view selected. Replace each <code>&lt;PLACEHOLDER&gt;</code> with the value you took from the
     alert you are investigating &mdash; the examples deliberately use placeholders so you read the
     value off the alert instead of off this page.</p>
+    <p class="linkrow" style="margin-top:0.8rem">
+      <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
+    </p>
     </div>
 
     <h4>All events from one source IP</h4>
@@ -295,7 +298,7 @@
         <ul>
           <li><a href="index.html">Home</a></li>
           <li><a href="index.html#scenarios">Practice scenarios</a></li>
-          <li><a data-kibana-link>Open SIEM Dashboard</a></li>
+          <li><a data-kibana-dash>Open SIEM Dashboard</a></li>
         </ul>
       </div>
       <div>
@@ -322,13 +325,31 @@
 
 <script src="assets/js/lab.js"></script>
 <script>
+  /* Single source of truth for the lab endpoints, so each URL lives only here.
+     data-kibana-dash   -> the SOC Triage Board, the student's alert queue
+     data-kibana-link   -> Discover, already pointed at normalized-events-*
+     data-kibana-alerts -> Discover, already pointed at security-alerts-*
+     data-es-link       -> the Elasticsearch API
+     Students are never sent to Kibana's generic home screen. */
   (function () {
     var ES = "http://localhost:9200";
     var KIBANA = "http://localhost:5601";
     var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
-    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+    function discover(dataViewId) {
+      return KIBANA + "/app/discover#/?_g=(time:(from:now-24h,to:now))" +
+             "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView))";
+    }
+    var EVENTS = discover("siem-normalized-events");
+    var ALERTS = discover("siem-security-alerts");
+    function wire(selector, url) {
+      document.querySelectorAll(selector).forEach(function (el) {
+        el.href = url; el.target = "_blank"; el.rel = "noopener";
+      });
+    }
+    wire("[data-kibana-dash]", DASH);
+    wire("[data-kibana-link]", EVENTS);
+    wire("[data-kibana-alerts]", ALERTS);
+    wire("[data-es-link]", ES);
   })();
 </script>
 </body>

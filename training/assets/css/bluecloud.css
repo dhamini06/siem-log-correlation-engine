@@ -167,6 +167,32 @@ img.brand-mark {
 .site-nav a.nav-cta:hover { background: var(--bc-orange-400); }
 
 /* ------------------------------------------------------------------ hero */
+/* The mission panel: the student role plus the six things the lab trains. */
+.role-line { max-width: 62ch; }
+.role-line strong { color: #fff; }
+.panel {
+  margin-top: 1.35rem; padding: 1rem 1.15rem; max-width: 52ch;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+}
+.panel-title {
+  display: block; font-size: 0.72rem; font-weight: 750; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--bc-orange-400); margin-bottom: 0.5rem;
+}
+.tick-list {
+  list-style: none; margin: 0; padding: 0; counter-reset: tick;
+  display: grid; gap: 0.28rem;
+}
+.tick-list li {
+  counter-increment: tick; position: relative; padding-left: 1.6rem;
+  color: var(--text-invert-muted); font-size: 0.92rem; line-height: 1.5;
+}
+.tick-list li::before {
+  content: counter(tick); position: absolute; left: 0; top: 0.1rem;
+  width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  background: var(--bc-orange-500); color: #1a1005;
+  display: grid; place-items: center; font-size: 0.66rem; font-weight: 750;
+}
 .hero {
   background:
     radial-gradient(1100px 380px at 82% -12%, rgba(255, 122, 0, 0.20), transparent 60%),
@@ -368,6 +394,88 @@ details.hint[open] summary::before { transform: rotate(90deg); }
 details.hint .hint-body { padding: 0 0 0.85rem; color: var(--text-body); }
 details.hint .hint-body p:last-child { margin-bottom: 0; }
 
+/* ------------------------------------------ investigation workflow steps */
+/* Step 1 finds the alert, step 2 investigates the evidence. The number is real
+   markup rather than a CSS counter so it is announced and selectable, and the
+   grid carries its own 250px track minimum: inside the narrow column a phone
+   has only ~280px of usable width, which is below .grid-2's 300px floor. */
+.workflow {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+.workflow-step {
+  background: #fff; border: 1px solid #dbe6f6; border-radius: var(--radius);
+  padding: 1.1rem 1.15rem; box-shadow: var(--shadow-sm);
+  display: flex; gap: 0.85rem; align-items: flex-start;
+}
+.step-num {
+  flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%;
+  background: var(--bc-blue-600); color: #fff;
+  display: grid; place-items: center; font-weight: 750; font-size: 1.05rem;
+}
+.step-body { min-width: 0; }
+.workflow-step .step-label {
+  display: block; font-size: 0.68rem; font-weight: 750; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--bc-orange-600); margin-bottom: 0.2rem;
+}
+.workflow-step h3 { margin: 0 0 0.35rem; font-size: 1.02rem; }
+.workflow-step p { font-size: 0.9rem; color: var(--text-body); margin-bottom: 0.8rem; }
+.workflow-step .btn { flex: 0 0 auto; }
+
+/* ------------------------------------------------- SIEM basics concept cards */
+/* Four short concepts. The example line is the only illustrative text; the
+   rule line at the bottom is the one thing to remember. */
+.basics .card { display: flex; flex-direction: column; }
+.basic { position: relative; padding-top: 1.45rem; }
+.basic-tag {
+  position: absolute; top: 0.8rem; right: 1rem;
+  font-family: var(--mono); font-size: 0.95rem; font-weight: 700;
+  color: var(--bc-orange-500);
+}
+.basic p { font-size: 0.9rem; color: var(--text-body); }
+.example {
+  background: #f5f8fd; border-left: 3px solid var(--bc-blue-200, #c6d8f5);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.5rem 0.7rem; color: var(--text-strong) !important; font-size: 0.88rem !important;
+}
+.rule-line {
+  margin-top: auto; padding-top: 0.55rem; font-size: 0.82rem !important;
+  color: var(--text-muted) !important; font-style: italic;
+}
+.tool-answers { font-size: 0.88rem !important; color: var(--text-strong) !important; }
+
+/* ------------------------------------------------ alert -> evidence chain */
+/* The central idea of the lab, as a numbered vertical flow. */
+.chain { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.chain-step {
+  display: flex; gap: 0.7rem; align-items: flex-start;
+  background: #fff; border: 1px solid #dbe6f6; border-radius: var(--radius);
+  padding: 0.7rem 0.85rem; box-shadow: var(--shadow-sm); font-size: 0.9rem;
+  line-height: 1.5;
+}
+.chain-step .n {
+  flex: 0 0 24px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bc-blue-600); color: #fff;
+  display: grid; place-items: center; font-size: 0.72rem; font-weight: 750;
+}
+.chain-step .muted { color: var(--text-body); }
+
+/* The walkthrough's second list must continue the count from the first. */
+.steps-5 { counter-reset: step 4; }
+
+/* ---------------------------------------------- incident summary fact grid */
+/* <dl> so the label/value pairs stay a description list for assistive tech. */
+.facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 0.7rem 1rem; margin: 0;
+}
+.facts > div { border-left: 3px solid var(--bc-blue-500); padding-left: 0.6rem; }
+.facts dt {
+  font-size: 0.68rem; font-weight: 750; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.facts dd { margin: 0.1rem 0 0; color: var(--text-strong); font-weight: 650; font-size: 0.93rem; }
+
 /* ------------------------------------------------------------- questions */
 .qlist { list-style: none; padding: 0; margin: 0; counter-reset: q; display: grid; gap: 0.6rem; }
 .qlist li {
@@ -488,6 +596,44 @@ hr.sep { border: none; border-top: 1px solid #dbe6f6; margin: 1.8rem 0; }
 .is-incorrect .answer-status { background: #fee2e2; color: #7f1d1d; }
 .is-selfreview .answer-status { background: var(--bc-orange-100); color: var(--bc-orange-600); }
 
+/* Marks a question as automatically checked or as self-reviewed, next to the
+   question text. Colours are the ones already used by .answer-status, so the two
+   read as the same family of badge. Static markup: the page still renders
+   correctly with no JavaScript. */
+.qtype {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.qtype-checked { background: #dcfce7; color: #14532d; border: 1px solid #b7e3c8; }
+.qtype-self { background: var(--bc-orange-100); color: var(--bc-orange-600); border: 1px solid #f3c79a; }
+
+/* Question cards. The row counter badge is replaced by real markup here, so it
+   is suppressed for this layout only - .qlist itself is untouched, which keeps
+   the numbering on scenarios 02-05. */
+.qmeta {
+  list-style: none; margin: 0 0 0.9rem; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 0.45rem;
+}
+.qintro { font-size: 0.93rem; color: var(--text-body); margin-bottom: 1rem; }
+.qlist-cards { counter-reset: none; }
+.qlist-cards > li { padding: 1rem 1.1rem; }
+.qlist-cards > li::before { content: none; }
+.qhead { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.55rem; margin-bottom: 0.45rem; }
+.qhead .qtype { margin-left: 0; }
+.qnum { font-family: var(--mono); font-size: 0.8rem; font-weight: 700; color: var(--bc-orange-600); }
+.qcat { font-weight: 700; font-size: 0.82rem; color: var(--text-strong); text-transform: uppercase; letter-spacing: 0.05em; }
+.qtext { margin: 0 0 0.1rem; color: var(--text-body); font-size: 0.97rem; }
+/* Separates the solution control from the question and the student's answer. */
+.qfoot { margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px dashed #dfe8f6; }
+
 .answer-feedback { list-style: none; margin: 0.55rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
 .answer-feedback:empty { display: none; }
 .answer-feedback li {
@@ -520,15 +666,26 @@ hr.sep { border: none; border-top: 1px solid #dbe6f6; margin: 1.8rem 0; }
 }
 .self-review-check input { width: 1rem; height: 1rem; accent-color: var(--bc-blue-600); }
 
+/* The model answer is a clearly bounded panel, never loose text under the
+   question. Left rule in the brand orange keeps it distinct from the green
+   "checked" badge without adding a new colour. */
 .answer-solution {
   margin-top: 0.7rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.85rem 0.95rem;
   border-radius: var(--radius-sm);
   background: var(--bc-orange-100);
   border: 1px solid #f3c79a;
+  border-left: 4px solid var(--bc-orange-500);
 }
-.answer-solution .callout-title { color: var(--bc-orange-600); }
-.answer-solution p { margin: 0.25rem 0 0; font-size: 0.88rem; }
+.answer-solution .callout-title {
+  color: var(--bc-orange-600); font-size: 0.7rem; letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.answer-solution p { margin: 0.3rem 0 0; font-size: 0.9rem; }
+.answer-solution .solution-note {
+  margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid #f0c79b;
+  font-size: 0.78rem; font-style: italic; color: #8a4a06;
+}
 
 .check-actions {
   margin-top: 1.4rem;
@@ -549,6 +706,37 @@ hr.sep { border: none; border-top: 1px solid #dbe6f6; margin: 1.8rem 0; }
 }
 .check-gate-note[hidden] { display: none; }
 .check-gate-note strong { color: var(--text-body); }
+
+/* ------------------------------------------- investigation progress card */
+/* Values come from the last /api/check result, never hard-coded. */
+.progress-card {
+  background: #fff; border: 1px solid #dbe6f6; border-radius: var(--radius);
+  padding: 1rem 1.15rem; box-shadow: var(--shadow-sm); margin-top: 1.4rem;
+}
+.progress-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.35rem 0.6rem; flex-wrap: wrap; margin-bottom: 0.6rem;
+}
+.progress-title {
+  font-size: 0.71rem; font-weight: 750; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--bc-orange-600);
+}
+.progress-count { font-weight: 700; color: var(--text-strong); font-size: 0.95rem; }
+.progress-track { height: 9px; border-radius: 999px; background: var(--bc-blue-100); overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0; border-radius: 999px;
+  background: linear-gradient(90deg, var(--bc-blue-600), var(--bc-blue-500));
+  transition: width 0.25s ease;
+}
+.progress-card.is-complete .progress-fill { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.progress-hint { font-size: 0.8rem; color: var(--text-muted); margin: 0.55rem 0 0; }
+
+/* -------------------------------------------------- hints and skills rows */
+.hint-actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.hint-note { font-size: 0.8rem; color: var(--text-muted); }
+.skills .card { padding: 0.9rem 1rem; }
+.skills .card h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+.skills .card p { font-size: 0.86rem; color: var(--text-body); }
 
 /* A disabled primary button must look disabled, not merely be unclickable. */
 .btn:disabled {
@@ -592,6 +780,15 @@ hr.sep { border: none; border-top: 1px solid #dbe6f6; margin: 1.8rem 0; }
   .hero-actions .btn { width: 100%; justify-content: center; }
   .check-status { margin-left: 0; width: 100%; }
   .check-actions .btn { flex: 1 1 auto; justify-content: center; }
+  /* Numbered flow, question cards and progress stack on a phone. */
+  .workflow-step { padding: 0.95rem 1rem; }
+  /* On a phone the action button would sit in a ~236px column beside the step
+     number, which is narrower than "Investigate events in Kibana". Stack the
+     number above the copy so the button spans the full card instead. */
+  .workflow-step { flex-direction: column; align-items: flex-start; gap: 0.55rem; }
+  .workflow-step .btn { width: 100%; justify-content: center; }
+  .qlist-cards > li { padding: 0.9rem 0.95rem; }
+  .qfoot .reveal-btn { font-size: 0.8rem; }
 }
 
 /* Tablet: the header nav collides with the brand well before the phone

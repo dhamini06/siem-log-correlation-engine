@@ -22,7 +22,7 @@
       <a href="../index.html">Home</a>
       <a href="../instructions.html">How to Investigate</a>
       <a href="../index.html#scenarios">Scenarios</a>
-      <a href="#" class="nav-cta" data-kibana-link>Open SIEM Dashboard</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
     </nav>
   </div>
 </header>
@@ -40,8 +40,9 @@
     </div>
     <h1>Brute Force Investigation</h1>
     <p class="sub">
-      Repeated failed SSH logons against the production web server. Establish exactly what
-      happened, and prove the attack did not succeed.
+      <strong>You have received a brute-force alert.</strong> Your job is to investigate it and
+      determine what happened: repeated failed SSH logons against the production web server.
+      Establish exactly what happened, and prove the attack did not succeed.
     </p>
   </div>
 </section>
@@ -49,11 +50,28 @@
 <main id="main">
 <div class="wrap narrow">
 
-  <!-- ------------------------------------------------------------- story -->
+  <!-- ================================================== 1. INCIDENT BRIEF -->
   <section class="section">
     <div class="section-head">
       <span class="kicker">Incident Brief</span>
-      <h2>Objective and background</h2>
+      <h2>What you are working</h2>
+    </div>
+
+    <dl class="facts">
+      <div><dt>Target</dt><dd>web-01</dd></div>
+      <div><dt>Service</dt><dd>SSH</dd></div>
+      <div><dt>Activity</dt><dd>Repeated authentication failures</dd></div>
+      <div><dt>Severity</dt><dd>high</dd></div>
+      <div><dt>Rule</dt><dd>brute_force</dd></div>
+      <div><dt>Known at start</dt><dd>Source IP and outcome unknown</dd></div>
+    </dl>
+
+    <div class="callout callout-warn" style="margin-top:1rem">
+      <span class="callout-title">Incident story</span>
+      <p>The overnight operations report flags a burst of failed SSH authentications against
+      <code>web-01</code>. A junior analyst noted "probably someone fat-fingering a password"
+      and closed the ticket. Your task is to replace that assumption with evidence. There is
+      a high-severity alert on the SOC Triage Board that matches this brief.</p>
     </div>
 
     <div class="callout callout-info">
@@ -61,16 +79,6 @@
       <p>Identify an automated credential-stuffing / brute force attack against the
       <code>web-01</code> SSH service, quantify it precisely, and confirm whether the attacker
       obtained access.</p>
-    </div>
-
-    <div class="callout callout-warn">
-      <span class="callout-title">Incident story</span>
-      <p>
-        The overnight operations report flags a burst of failed SSH authentications against
-        <code>web-01</code>. A junior analyst noted "probably someone fat-fingering a password"
-        and closed the ticket. Your task is to replace that assumption with evidence. There is
-        a high-severity alert on the SOC Triage Board that matches this brief.
-      </p>
     </div>
 
     <div class="card">
@@ -82,107 +90,237 @@
         <li>You do <strong>not</strong> know the source IP, the accounts targeted, or whether it succeeded.</li>
       </ul>
     </div>
+  </section>
 
-    <div class="card card-accent" style="margin-top:1rem">
-      <h3>Investigation task</h3>
-      <ol class="steps">
-        <li><strong>Locate the alert</strong>On the SOC Triage Board, find the high-severity alert whose reasoning describes failed logons against a web server.</li>
-        <li><strong>Quantify the attack</strong>Establish the source IP, the accounts attacked, the number of failures, and the exact start and end of the window.</li>
-        <li><strong>Confirm the outcome</strong>Determine whether any successful login followed from that source.</li>
-        <li><strong>Corroborate with the firewall</strong>Check whether <code>fw-01</code> recorded blocked connections from the same source to the same host.</li>
-        <li><strong>Test the false-positive theory</strong>Find the account that also had failed logons that did <em>not</em> alert, and explain the difference.</li>
-      </ol>
-      <p class="linkrow" style="margin-top:1rem">
-        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
-        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
-      </p>
+  <!-- ======================================================== 2. MISSION -->
+  <section class="section section-alt">
+    <div class="section-head">
+      <span class="kicker">Investigation task</span>
+      <h2>Your mission</h2>
+    </div>
+    <ol class="steps">
+      <li><strong>Locate the alert</strong>On the SOC Triage Board, find the high-severity alert whose reasoning describes failed logons against a web server.</li>
+      <li><strong>Quantify the attack</strong>Establish the source IP, the accounts attacked, the number of failures, and the exact start and end of the window.</li>
+      <li><strong>Confirm the outcome</strong>Determine whether any successful login followed from that source.</li>
+      <li><strong>Corroborate with the firewall</strong>Check whether <code>fw-01</code> recorded blocked connections from the same source to the same host.</li>
+      <li><strong>Test the false-positive theory</strong>Find the account that also had failed logons that did <em>not</em> alert, and explain the difference.</li>
+    </ol>
+  </section>
+
+  <!-- ====================================================== 3. WORKFLOW -->
+  <section class="section">
+    <div class="section-head">
+      <span class="kicker">Investigation workflow</span>
+      <h2>Read, find, investigate, answer</h2>
+      <p><strong>This page is the brief.</strong> It tells you what happened and what you are
+      being asked to work out. Nothing here is the answer &mdash; the SOC Dashboard and Kibana
+      Discover are where you look it up.</p>
+    </div>
+
+    <ol class="steps">
+      <li><strong>Read the scenario</strong>Understand what you are being asked to investigate.</li>
+      <li><strong>Open the SOC Dashboard</strong>Use the dashboard to locate the alert related to
+      this scenario. It is called the SOC Triage Board.</li>
+      <li><strong>Investigate the evidence</strong>Follow the alert's evidence into the underlying
+      normalized events in Kibana Discover. Check timestamps, host, user, source IP, event type,
+      process information and any other relevant fields.</li>
+      <li><strong>Answer the questions</strong>Use the evidence you found in Kibana to answer the
+      investigation questions.</li>
+    </ol>
+
+    <div class="grid grid-2 workflow" style="margin-top:1.1rem">
+      <div class="card workflow-step">
+        <span class="step-num" aria-hidden="true">1</span>
+        <div class="step-body">
+          <span class="step-label">Alerts and triage</span>
+          <h3>SOC Dashboard</h3>
+          <p>Every alert this SIEM raised, with its severity, rule name and reasoning. Start here
+          to find the alert this scenario is about.</p>
+          <p class="tool-answers">Tells you <strong>what was detected</strong>.</p>
+          <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Dashboard</a>
+        </div>
+      </div>
+      <div class="card workflow-step">
+        <span class="step-num" aria-hidden="true">2</span>
+        <div class="step-body">
+          <span class="step-label">Underlying events</span>
+          <h3>Kibana Discover</h3>
+          <p>The individual normalized events behind an alert, already pointed at the
+          <code>normalized-events-*</code> data view.</p>
+          <p class="tool-answers">Lets you investigate <strong>why it was detected</strong>.</p>
+          <a class="btn btn-outline btn-sm" data-kibana-link>Investigate events in Kibana</a>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- --------------------------------------------------------- questions -->
+  <!-- ================================================ 4. QUESTIONS + CHECK -->
   <section class="section section-alt">
     <div class="section-head">
-      <span class="kicker">Evidence</span>
+      <span class="kicker">Step 3 &middot; Investigation &amp; Evidence</span>
       <h2>Answer every question</h2>
-      <p>Each answer must be supported by a record you found in the SIEM. Fill in every box, then choose <strong>Check answers</strong>: the lab grades every fact it can verify, tells you which part of a question did not match, and leaves your written answers for you to review yourself. Your notes stay in this browser.</p>
     </div>
 
+    <ul class="qmeta">
+      <li class="chip chip-blue">9 questions total</li>
+      <li class="chip chip-ok">7 evidence-based &middot; automatically checked</li>
+      <li class="chip chip-orange">2 analyst self-review</li>
+    </ul>
+
+    <p class="qintro">Each answer must be supported by a record you found in the SIEM &mdash;
+    do not guess. Fill in every box, then choose <strong>Check answers</strong>: the lab grades
+    every fact it can verify and tells you which part of a question did not match. Your notes
+    stay in this browser.</p>
+
     <p class="saved-note" id="saved-note">Saved in this browser only.</p>
-    <ol class="qlist">
+
+    <ol class="qlist qlist-cards">
       <li data-question-row="q1">
-        <strong>Which source IP launched the attack, and which host was targeted?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q1</span>
+          <span class="qcat">Attack origin</span>
+          <span class="qtype qtype-checked">SIEM evidence &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Which source IP launched the attack, and which host was targeted?</p>
         <div class="answer-box"><textarea data-question="q1" placeholder="Source IP / host"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q2">
-        <strong>Which usernames were attacked, and how many times was each targeted?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q2</span>
+          <span class="qcat">Targeted accounts</span>
+          <span class="qtype qtype-checked">SIEM evidence &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Which usernames were attacked, and how many times was each targeted?</p>
         <div class="answer-box"><textarea data-question="q2" placeholder="Users and counts"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q3">
-        <strong>How many failed logons are in the alert's evidence set, and what exact time window do they span?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q3</span>
+          <span class="qcat">Attack volume &amp; time window</span>
+          <span class="qtype qtype-checked">SIEM evidence &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">How many failed logons are in the alert's evidence set, and what exact time window do they span?</p>
         <div class="answer-box"><textarea data-question="q3" placeholder="Count and timestamps (UTC)"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q4">
-        <strong>Which correlation rule fired, and which two thresholds did the activity cross?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q4</span>
+          <span class="qcat">Correlation rule</span>
+          <span class="qtype qtype-checked">Detection rule &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Which correlation rule fired, and which two thresholds did the activity cross?</p>
         <div class="answer-box"><textarea data-question="q4" placeholder="Rule name + thresholds"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q5">
-        <strong>Did any successful login follow from that source IP? How do you know?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q5</span>
+          <span class="qcat">Attack outcome</span>
+          <span class="qtype qtype-checked">SIEM evidence &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Did any successful login follow from that source IP? How do you know?</p>
         <div class="answer-box"><textarea data-question="q5" placeholder="Yes/no + the evidence"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q6">
-        <strong>What corroborating evidence exists on the firewall? Give the source, destination, port and timing.</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q6</span>
+          <span class="qcat">Firewall corroboration</span>
+          <span class="qtype qtype-checked">Cross-source evidence &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">What corroborating evidence exists on the firewall? Give the source, destination, port and timing.</p>
         <div class="answer-box"><textarea data-question="q6" placeholder="Firewall events"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q7">
-        <strong>Another account in this lab also had failed logons but produced no alert. Which account, how many failures, and why no alert?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q7</span>
+          <span class="qcat">Non-alerting activity</span>
+          <span class="qtype qtype-checked">False-positive analysis &middot; checked</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Another account in this lab also had failed logons but produced no alert. Which account, how many failures, and why no alert?</p>
         <div class="answer-box"><textarea data-question="q7" placeholder="Account, count, threshold reasoning"></textarea></div>
         <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q8">
-        <strong>Why were some of the failed logons recorded as "Invalid user" rather than "Failed password"? What does that tell you about the attack?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q8</span>
+          <span class="qcat">Invalid user activity</span>
+          <span class="qtype qtype-self">Analyst reasoning &middot; self-review</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">Why were some of the failed logons recorded as "Invalid user" rather than "Failed password"? What does that tell you about the attack?</p>
         <div class="answer-box"><textarea data-question="q8" placeholder="Interpretation of the log lines"></textarea></div>
         <ul class="answer-feedback"></ul>
-
         <label class="self-review-check" hidden><input type="checkbox" data-self-review="q8">I have re-read my written answer against the question and I am confident it covers every part</label>
-
-        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
+        </div>
       </li>
       <li data-question-row="q9">
-        <strong>State the final security finding in two or three sentences: what happened, to what, from where, and what is the impact?</strong><span class="answer-status" hidden></span>
+        <div class="qhead">
+          <span class="qnum">Q9</span>
+          <span class="qcat">Final security finding</span>
+          <span class="qtype qtype-self">Incident reporting &middot; self-review</span>
+          <span class="answer-status" hidden></span>
+        </div>
+        <p class="qtext">State the final security finding in two or three sentences: what happened, to what, from where, and what is the impact?</p>
         <div class="answer-box"><textarea data-question="q9" placeholder="Your security finding"></textarea></div>
         <ul class="answer-feedback"></ul>
-
         <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
-
-        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
+        <div class="qfoot">
+          <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
+        </div>
       </li>
     </ol>
+
+    <div class="progress-card" id="progress-card">
+      <div class="progress-head">
+        <span class="progress-title">Investigation progress</span>
+        <span class="progress-count" id="progress-label">Not checked yet</span>
+      </div>
+      <div class="progress-track" id="progress-bar" role="progressbar"
+           aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="7" aria-valuenow="0">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <p class="progress-hint mb0" id="progress-hint">Run Check answers to see how many evidence checks pass.</p>
+    </div>
 
     <div class="check-actions">
       <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
       <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
       <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
-      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
       <a class="btn btn-blue" href="scenario-2-successful-brute-force.html">Next scenario</a>
       <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
     </div>
@@ -194,11 +332,16 @@
     </div>
   </section>
 
-  <!-- ------------------------------------------------------------- hints -->
+  <!-- ========================================================== 5. HINTS -->
   <section class="section">
     <div class="section-head">
       <span class="kicker">Progressive Hints</span>
-      <h2>Stuck? Reveal one step at a time.</h2>
+      <h2>Need help?</h2>
+    </div>
+
+    <div class="hint-actions">
+      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+      <span class="hint-note">Open one at a time &mdash; always try the SIEM first.</span>
     </div>
 
     <details class="hint">
@@ -264,19 +407,19 @@
     </details>
   </section>
 
-  <!-- ------------------------------------------------------------ skills -->
+  <!-- ========================================================= 6. SKILLS -->
   <section class="section section-dark">
     <div class="section-head">
       <span class="kicker">Skills Practised</span>
       <h2>What this exercise builds</h2>
     </div>
-    <div class="grid grid-3">
-      <div class="card"><h3>Alert triage</h3><p class="mb0">Selecting the relevant alert from a populated queue and reading its reasoning field.</p></div>
-      <div class="card"><h3>Quantitative analysis</h3><p class="mb0">Counting events and measuring a time window precisely rather than approximately.</p></div>
-      <div class="card"><h3>Evidence correlation</h3><p class="mb0">Joining host logs and firewall logs that describe the same incident from different vantage points.</p></div>
-      <div class="card"><h3>Rule literacy</h3><p class="mb0">Understanding which detection threshold was crossed and why the alert fired.</p></div>
-      <div class="card"><h3>False-positive reasoning</h3><p class="mb0">Explaining why similar-looking activity correctly produced no alert.</p></div>
-      <div class="card"><h3>Incident reporting</h3><p class="mb0">Converting technical evidence into a concise, actionable security finding.</p></div>
+    <div class="grid grid-2 skills">
+      <div class="card skill"><h3>Alert triage</h3><p class="mb0">Selecting the relevant alert from a populated queue and reading its reasoning field.</p></div>
+      <div class="card skill"><h3>Quantitative analysis</h3><p class="mb0">Counting events and measuring a time window precisely rather than approximately.</p></div>
+      <div class="card skill"><h3>Evidence correlation</h3><p class="mb0">Joining host logs and firewall logs that describe the same incident from different vantage points.</p></div>
+      <div class="card skill"><h3>Rule literacy</h3><p class="mb0">Understanding which detection threshold was crossed and why the alert fired.</p></div>
+      <div class="card skill"><h3>False-positive reasoning</h3><p class="mb0">Explaining why similar-looking activity correctly produced no alert.</p></div>
+      <div class="card skill"><h3>Incident reporting</h3><p class="mb0">Converting technical evidence into a concise, actionable security finding.</p></div>
     </div>
   </section>
 
@@ -323,13 +466,31 @@
 <script src="../assets/js/lab.js"></script>
 <script src="../assets/js/lab-check.js"></script>
 <script>
+  /* Single source of truth for the lab endpoints, so each URL lives only here.
+     data-kibana-dash   -> the SOC Triage Board, the student's alert queue
+     data-kibana-link   -> Discover, already pointed at normalized-events-*
+     data-kibana-alerts -> Discover, already pointed at security-alerts-*
+     data-es-link       -> the Elasticsearch API
+     Students are never sent to Kibana's generic home screen. */
   (function () {
     var ES = "http://localhost:9200";
     var KIBANA = "http://localhost:5601";
     var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
-    document.querySelectorAll("[data-kibana-link]").forEach(function (el) { el.href = KIBANA; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-kibana-dash]").forEach(function (el) { el.href = DASH; el.target = "_blank"; el.rel = "noopener"; });
-    document.querySelectorAll("[data-es-link]").forEach(function (el) { el.href = ES; el.target = "_blank"; el.rel = "noopener"; });
+    function discover(dataViewId) {
+      return KIBANA + "/app/discover#/?_g=(time:(from:now-24h,to:now))" +
+             "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView))";
+    }
+    var EVENTS = discover("siem-normalized-events");
+    var ALERTS = discover("siem-security-alerts");
+    function wire(selector, url) {
+      document.querySelectorAll(selector).forEach(function (el) {
+        el.href = url; el.target = "_blank"; el.rel = "noopener";
+      });
+    }
+    wire("[data-kibana-dash]", DASH);
+    wire("[data-kibana-link]", EVENTS);
+    wire("[data-kibana-alerts]", ALERTS);
+    wire("[data-es-link]", ES);
   })();
 </script>
 </body>

@@ -187,6 +187,34 @@
       box.appendChild(el("p", "mb0",
         "Each ✗ line below says which part of the question was not matched. Follow the hint, correct the answer, and check again."));
     }
+    paintProgress(result);
+  }
+
+  /* Compact progress read-out for the redesigned scenario page. Every number
+     comes from the check response, so the bar can never claim a score the
+     grader did not give. A page without the progress card is unaffected: this
+     returns early when the elements are absent. */
+  function paintProgress(result) {
+    var card = document.getElementById("progress-card");
+    var bar = document.getElementById("progress-bar");
+    var fill = document.getElementById("progress-fill");
+    var label = document.getElementById("progress-label");
+    var hint = document.getElementById("progress-hint");
+    if (!bar || !fill || !label) return;
+
+    var s = result.summary || {};
+    var total = s.required_total || 0;
+    var done = s.required_correct || 0;
+    fill.style.width = (total ? Math.round((done / total) * 100) : 0) + "%";
+    bar.setAttribute("aria-valuenow", String(done));
+    bar.setAttribute("aria-valuemax", String(total));
+    label.textContent = done + " / " + total + " evidence checks passed";
+    if (card) card.classList.toggle("is-complete", Boolean(result.completed));
+    if (hint) {
+      hint.textContent = result.completed
+        ? "Every checkable answer is correct. Mark the scenario complete below."
+        : "Update an answer, then run Check answers again.";
+    }
   }
 
   function persistProgress(result) {
@@ -319,8 +347,15 @@
           .then(function (data) {
             var box = row.querySelector(".answer-solution") || el("div", "answer-solution");
             clear(box);
-            box.appendChild(el("span", "callout-title", "Model solution" + (data.assisted ? " (assisted)" : "")));
+            box.appendChild(el("span", "callout-title",
+              "Model answer" + (data.assisted ? " \u00b7 assisted" : "")));
             box.appendChild(el("p", "mb0", data.solution || ""));
+            /* Shown only when the server marked the reveal as assisted, so the
+               note can never claim a consequence that did not happen. */
+            if (data.assisted) {
+              box.appendChild(el("p", "solution-note mb0",
+                "Revealing the model answer marks this question as assisted."));
+            }
             box.hidden = false;
             if (!row.querySelector(".answer-solution")) row.appendChild(box);
             button.textContent = "Hide solution";
