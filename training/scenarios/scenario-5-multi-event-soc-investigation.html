@@ -20,26 +20,29 @@
     </div>
     <nav class="site-nav" aria-label="Main">
       <a href="../index.html">Home</a>
-      <a href="../instructions.html">How to Investigate</a>
-      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="../instructions.html">Investigation Method</a>
+      <a href="../scenarios.html">Scenarios</a>
+      <span class="nav-identity" data-auth-identity hidden>Signed in</span>
+      <a href="#" class="nav-signout" data-auth-signout hidden>Sign out</a>
       <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
     </nav>
   </div>
 </header>
 
-<section class="page-head">
+<section class="page-head case-head">
   <div class="wrap">
     <div class="breadcrumb">
-      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 05
+      <a href="../index.html">Home</a> / <a href="../scenarios.html">Scenarios</a> / Scenario 05
     </div>
-    <div class="hero-meta" style="margin:0 0 0.6rem">
-      <span class="chip chip-orange">Scenario 05</span>
+    <div class="case-meta">
+      <span class="case-id">Scenario 05</span>
       <span class="diff diff-hard">Hard</span>
-      <span class="chip chip-blue">All three rules</span>
-      <span class="chip chip-light">Capstone</span>
+<span class="chip chip-blue">All three rules</span>
+<span class="chip chip-light">Capstone</span>
+      <span class="chip chip-crit">Severity: high</span>
     </div>
     <h1>Multi-Event SOC Investigation</h1>
-    <p class="sub">
+    <p class="case-objective">
       The whole incident. Reconstruct the complete timeline across every host, rank the findings
       by severity, and write the conclusion a SOC shift lead would escalate at handover.
     </p>
@@ -47,300 +50,394 @@
 </section>
 
 <main id="main">
-<div class="wrap narrow">
 
-  <section class="section">
-    <div class="section-head">
-      <span class="kicker">Incident Brief</span>
-      <h2>Objective and background</h2>
-    </div>
+  <div class="wrap measure-none">
+    <div class="layout-split">
 
-    <div class="callout callout-info">
-      <span class="callout-title">Security objective</span>
-      <p>Produce a single incident picture from four independent alerts across two hosts and
-      four distinct source IPs, exclude the benign activity, and deliver a prioritised
-      conclusion with justification.</p>
-    </div>
+      <section class="ws-section workspace-brief">
+        <div class="ws-head">
+          <span class="kicker">Incident Brief</span>
+          <h2>What you are working</h2>
+        </div>
 
-    <div class="callout callout-warn">
-      <span class="callout-title">Incident story</span>
-      <p>
-        It is 08:00. You are the SOC analyst on shift. Overnight, the SOC Triage Board collected
-        four alerts, and the operations team has separately reported that a web server account
-        behaved strangely and that an application server administrator was seen at the keyboard.
-        Before you escalate anything to the incident response team you must produce one coherent,
-        evidence-based account of the night, and you must be explicit about what is noise.
-      </p>
-      <p class="mb0">
-        The first four scenarios taught you each alert type individually. This scenario is the
-        assessment: can you triage a whole queue, rank it, and write it up?
-      </p>
-    </div>
+            <div class="callout callout-info">
+              <span class="callout-title">Security objective</span>
+              <p>Produce a single incident picture from four independent alerts across two hosts and
+              four distinct source IPs, exclude the benign activity, and deliver a prioritised
+              conclusion with justification.</p>
+            </div>
 
-    <div class="card">
-      <h3>What you know at the start</h3>
-      <ul>
-        <li>Four alerts exist, across two distinct hosts and more than two distinct source IPs.</li>
-        <li>The same lab also contains benign activity that correctly produced no alert.</li>
-        <li>One alert is <code>critical</code>. The severity order is a triage order.</li>
-      </ul>
-    </div>
+            <div class="callout callout-warn">
+              <span class="callout-title">Incident story</span>
+              <p>
+                It is 08:00. You are the SOC analyst on shift. Overnight, the SOC Triage Board collected
+                four alerts, and the operations team has separately reported that a web server account
+                behaved strangely and that an application server administrator was seen at the keyboard.
+                Before you escalate anything to the incident response team you must produce one coherent,
+                evidence-based account of the night, and you must be explicit about what is noise.
+              </p>
+              <p class="mb0">
+                The first four scenarios taught you each alert type individually. This scenario is the
+                assessment: can you triage a whole queue, rank it, and write it up?
+              </p>
+            </div>
 
-    <div class="card card-accent-orange" style="margin-top:1rem">
-      <h3>Investigation task</h3>
-      <ol class="steps">
-        <li><strong>Survey the queue</strong>Count the alerts and split them by severity and rule.</li>
-        <li><strong>Build the timeline</strong>Order every relevant event on a single UTC axis, including the firewall records.</li>
-        <li><strong>Cluster the activity</strong>Group events by source IP, host and user. Decide how many distinct activity clusters exist.</li>
-        <li><strong>Identify the baseline</strong>Find the routine activity on the web server and confirm it is unrelated.</li>
-        <li><strong>Identify the non-alerting near-misses</strong>Two pieces of suspicious-looking activity produced no alert. Explain both.</li>
-        <li><strong>Rank and escalate</strong>Decide which finding is most serious and justify it with the alert severity and the evidence.</li>
-        <li><strong>Write the handover</strong>Produce a short incident conclusion an oncoming analyst could act on.</li>
-      </ol>
-      <p class="linkrow" style="margin-top:1rem">
-        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
-        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
-      </p>
-    </div>
-  </section>
+            <div class="ws-note">
+              <h3>What you know at the start</h3>
+              <ul>
+                <li>Four alerts exist, across two distinct hosts and more than two distinct source IPs.</li>
+                <li>The same lab also contains benign activity that correctly produced no alert.</li>
+                <li>One alert is <code>critical</code>. The severity order is a triage order.</li>
+              </ul>
+            </div>
 
-<!-- ============================================ INVESTIGATION WORKFLOW -->
-<section class="section">
- <div class="section-head">
-   <span class="kicker">Investigation workflow</span>
-   <h2>Read, find, investigate, answer</h2>
-   <p><strong>This page is the brief.</strong> It tells you what happened and what you are
-   being asked to work out. Nothing here is the answer &mdash; the SOC Dashboard and Kibana
-   Discover are where you look it up.</p>
- </div>
 
- <ol class="steps">
-   <li><strong>Read the scenario</strong>Understand what you are being asked to investigate.</li>
-   <li><strong>Open the SOC Dashboard</strong>Use the dashboard to locate the alert related to
-   this scenario. It is called the SOC Triage Board.</li>
-   <li><strong>Investigate the evidence</strong>Follow the alert's evidence into the underlying
-   normalized events in Kibana Discover. Check timestamps, host, user, source IP, event type,
-   process information and any other relevant fields.</li>
-   <li><strong>Answer the questions</strong>Use the evidence you found in Kibana to answer the
-   investigation questions.</li>
- </ol>
 
- <div class="grid grid-2 workflow" style="margin-top:1.1rem">
-   <div class="card workflow-step">
-     <span class="step-num" aria-hidden="true">1</span>
-     <div class="step-body">
-       <span class="step-label">Alerts and triage</span>
-       <h3>SOC Dashboard</h3>
-       <p>Every alert this SIEM raised, with its severity, rule name and reasoning. Start here
-       to find the alert this scenario is about.</p>
-       <p class="tool-answers">Tells you <strong>what was detected</strong>.</p>
-       <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Dashboard</a>
-     </div>
-   </div>
-   <div class="card workflow-step">
-     <span class="step-num" aria-hidden="true">2</span>
-     <div class="step-body">
-       <span class="step-label">Underlying events</span>
-       <h3>Kibana Discover</h3>
-       <p>The individual normalized events behind an alert, already pointed at the
-       <code>normalized-events-*</code> data view.</p>
-       <p class="tool-answers">Lets you investigate <strong>why it was detected</strong>.</p>
-       <a class="btn btn-outline btn-sm" data-kibana-link>Investigate events in Kibana</a>
-     </div>
-   </div>
- </div>
-</section>
+        <div class="ws-sub">
+          <span class="kicker">Investigation task</span>
+          <h3>Your mission</h3>
+          <ol class="steps">
+                <li><strong>Survey the queue</strong>Count the alerts and split them by severity and
+                rule.</li>
+                <li><strong>Build the timeline, then cluster</strong>Order every relevant event on a single
+                UTC axis, including the firewall records, then group them by source IP, host and user to
+                decide how many distinct activity clusters exist.</li>
+                <li><strong>Separate signal from noise</strong>Find the routine activity on the web server
+                and confirm it is unrelated, then account for the two suspicious-looking pieces of
+                activity that produced no alert.</li>
+                <li><strong>Rank and hand over</strong>Decide which finding is most serious and justify it
+                with the alert severity and the evidence, then write a short incident conclusion an
+                oncoming analyst could act on.</li>
+              </ol>
+        </div>
+      </section>
 
-  <section class="section section-alt">
-    <div class="section-head">
-   <span class="kicker">Investigation &amp; Evidence</span>
-   <h2>Answer every question</h2>
-   <p>Use the alert you found on the SOC Dashboard and the underlying normalized
-   events in Kibana Discover to answer these questions. Every answer must be
-   supported by a record you found in the SIEM &mdash; do not guess.</p>
-   <p><strong>Ten questions total.</strong> 8 are automatically checked. 2 are questions you assess yourself against the evidence you found.</p>
-</div>
+      <section class="ws-section workspace-questions">
+        <div class="ws-head">
 
-    <p class="saved-note" id="saved-note">Saved in this browser only.</p>
-    <ol class="qlist">
-      <li data-question-row="q1">
-        <strong>How many alerts are on the board, and how do they split by severity and by rule?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q1" placeholder="Counts by severity and rule"></textarea></div>
-        <ul class="answer-feedback"></ul>
+          <span class="kicker">Investigation &amp; Evidence</span>
+          <h2>Work the investigation</h2>
+          <p class="qintro">Use SIEM evidence for every answer. Investigate, then answer one objective at a time: choose <strong>Check answer</strong> on each question as you go, and submit the final analyst finding at the end to state your assessment. 7 evidence questions, then the finding.</p>
+          <p><strong>8 questions total.</strong> 7 are evidence questions, checked one at a time. The last one is the final analyst finding.</p>
 
-        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
+        </div>
+
+        <p class="saved-note" id="saved-note">Draft saved in this browser. Progress saves to your account.</p>
+
+
+<ol class="qlist qlist-investigation" aria-label="Investigation questions">
+      <li class="q-item" data-question-row="s5e1" data-control="ordering" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 1</span>
+          <div class="q-titles">
+            <h3 class="q-label">Chronological alert order</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Order the four alerts from earliest to latest.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, timestamp column</p>
+        <div class="q-answer">
+                <p class="ord-help">Put these in the order they happened. Use the arrows, then check your answer.</p>
+                <ol class="answer-control ordered-list" data-question="s5e1">
+                  <li><span class="ord-label">the authentication burst that succeeded</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the authentication burst that succeeded earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the authentication burst that succeeded later">&#9660;</button></li>
+                  <li><span class="ord-label">the first post-authentication process</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the first post-authentication process earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the first post-authentication process later">&#9660;</button></li>
+                  <li><span class="ord-label">the second post-authentication process</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the second post-authentication process earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the second post-authentication process later">&#9660;</button></li>
+                  <li><span class="ord-label">the failed-only authentication burst</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the failed-only authentication burst earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the failed-only authentication burst later">&#9660;</button></li>
+                </ol>
+                <textarea class="answer-control ord-value" data-question="s5e1" rows="2" hidden></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e1">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e1" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e1" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q2">
-        <strong>List every alert with: rule name, severity, source IP, user, host, and timestamp. This is your master table.</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q2" placeholder="Master alert table"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e2" data-control="count" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 2</span>
+          <div class="q-titles">
+            <h3 class="q-label">How many distinct source addresses alerted</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine how many separate source addresses the engine alerted on.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, src_ip column</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s5e2-input">Number</label>
+                <input class="answer-control answer-number" id="s5e2-input" type="number" inputmode="numeric" min="0" data-question="s5e2" placeholder="0">
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e2">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e2" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e2" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q3">
-        <strong>How many distinct source IPs generated alerts, and which host did each target?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q3" placeholder="Source IPs and targets"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e3" data-control="ordering" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 3</span>
+          <div class="q-titles">
+            <h3 class="q-label">Alerts on the same host</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine which two of the alerts landed on the same host.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, host column</p>
+        <div class="q-answer">
+                <p class="ord-help">Put these in the order they happened. Use the arrows, then check your answer.</p>
+                <ol class="answer-control ordered-list" data-question="s5e3">
+                  <li><span class="ord-label">the authentication burst that succeeded</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the authentication burst that succeeded earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the authentication burst that succeeded later">&#9660;</button></li>
+                  <li><span class="ord-label">the failed-only authentication burst</span><button type="button" class="ord-move" data-dir="up" aria-label="Move the failed-only authentication burst earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move the failed-only authentication burst later">&#9660;</button></li>
+                </ol>
+                <textarea class="answer-control ord-value" data-question="s5e3" rows="2" hidden></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e3">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e3" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e3" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q4">
-        <strong>Build the timeline: what happened first, what happened last, and what is the total elapsed span of the attack activity?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q4" placeholder="First / last / span"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e4" data-control="boolean" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 4</span>
+          <div class="q-titles">
+            <h3 class="q-label">Do the same-host alerts share an actor</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine whether the alerts on the shared host came from the same source.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, comparing src_ip and user on those two rows</p>
+        <div class="q-answer">
+                <span class="answer-control answer-choice" role="radiogroup" aria-label="Your conclusion">
+                  <button type="button" class="btn-choice" data-choice="yes" data-for="s5e4">Yes</button>
+                  <button type="button" class="btn-choice" data-choice="no" data-for="s5e4">No</button>
+                </span>
+                <textarea class="answer-control answer-why" data-question="s5e4" rows="2" placeholder="Why? One or two sentences."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e4">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e4" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e4" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q5">
-        <strong>Several alerts land on the same host, yet they carry different source IPs and different users. Which of them belong to the same incident? Justify your answer.</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q5" placeholder="Same or separate, with reasoning"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e5" data-control="enum" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 5</span>
+          <div class="q-titles">
+            <h3 class="q-label">Alert representing achieved access</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine which alert records that the attacker actually got in.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, severity column</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s5e5-input">Your conclusion</label>
+                <select class="answer-control" id="s5e5-input" data-question="s5e5">
+                        <option value="the failed-only authentication burst">the failed-only authentication burst</option>
+                        <option value="the authentication burst that succeeded">the authentication burst that succeeded</option>
+                        <option value="the first post-authentication process">the first post-authentication process</option>
+                        <option value="the second post-authentication process">the second post-authentication process</option>
+                  <option value="">Choose one&hellip;</option>
+                </select>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e5">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e5" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e5" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q6">
-        <strong>Which alert is the most serious, and why? Name the rule and the evidence that makes it worse than the others.</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q6" placeholder="Most serious alert + justification"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e6" data-control="finding" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 6</span>
+          <div class="q-titles">
+            <h3 class="q-label">Most severe outcome and why</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine which alert represents the most serious outcome and justify it.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, severity plus the evidence sets</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s5e6-input">Your finding</label>
+                <textarea class="answer-control" id="s5e6-input" data-question="s5e6" rows="7" placeholder="Your assessment: the evidence you read, what it means, the consequence, and what you would do."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e6">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e6" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e6" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q7">
-        <strong>What does the firewall contribute to this incident that the host logs alone do not?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q7" placeholder="Firewall contribution"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s5e7" data-control="finding" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 7</span>
+          <div class="q-titles">
+            <h3 class="q-label">Suspicious but quiet activity</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Explain how activity that looked suspicious produced no alert.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> Kibana Discover, normalized-events-*</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s5e7-input">Your finding</label>
+                <textarea class="answer-control" id="s5e7-input" data-question="s5e7" rows="7" placeholder="Your assessment: the evidence you read, what it means, the consequence, and what you would do."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5e7">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5e7" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5e7" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q8">
-        <strong>Identify TWO pieces of activity in this lab that looked suspicious but correctly produced no alert. Explain the rule or window that kept each one quiet.</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q8" placeholder="Two non-alerting activities + reasons"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
+      <li class="q-item q-item-final" data-question-row="s5f" data-control="finding" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Finding</span>
+          <div class="q-titles">
+            <h3 class="q-label">Final analyst handover</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not submitted</span>
+        </div>
+        <p class="q-objective q-objective-final">Write the handover: timeline, confirmed compromise, parallel activity, quiet-but-suspicious behaviour, and next actions.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue for the timeline and severity, plus normalized-events-* for the quiet activity</p>
+        <details class="q-rubric">
+          <summary>What a complete finding covers</summary>
+          <ul class="q-rubric-list">
+            <li><strong>timeline: the alerts in order</strong></li>
+            <li><strong>confirmed compromise: what proves access was achieved</strong></li>
+            <li><strong>parallel and quiet activity</strong></li>
+            <li><strong>recommended next actions</strong></li>
+          </ul>
+          <p class="q-rubric-note">Cover all four. TIMELINE: the four alerts in order, with what each represents and the span they cover. CONFIRMED COMPROMISE: the one alert that proves access was achieved, and the account and host it affects. PARALLEL AND QUIET ACTIVITY: what the alerts sharing a host do and do not have in common, and why the activity that raised no alert stayed silent. RECOMMENDED NEXT ACTIONS: at least three concrete steps. Keep it to a short paragraph plus the actions.</p>
+        </details>
+        <div class="q-answer">
+                <label class="sr-only" for="s5f-input">Your finding</label>
+                <textarea class="answer-control" id="s5f-input" data-question="s5f" rows="7" placeholder="Your assessment: the evidence you read, what it means, the consequence, and what you would do."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s5f">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s5f" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s5f" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q9">
-        <strong>What is the routine background activity on the web server, and how do you prove it is normal rather than an early-stage attack?</strong><span class="qtype qtype-self">Self review</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q9" placeholder="Baseline activity + proof"></textarea></div>
-        <ul class="answer-feedback"></ul>
+</ol>
 
-        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
+                <div class="check-actions check-actions-investigation">
+              <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
+              <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+              <a class="btn btn-blue" href="../scenarios.html">All scenarios</a>
+              <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
+            </div>
+            <p class="check-gate-note" id="check-gate-note">Work through the evidence
+            questions one at a time and use <strong>Check answer</strong> on each. The
+            scenario is finished when every evidence question <em>and</em> the final
+            analyst finding are correct.</p>
+            <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
+            <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+              <span class="callout-title">Scenario completed</span>
+              <p class="mb0">Every evidence question and your final analyst finding were
+              correct, and your progress is saved to your account. Move on to the next
+              scenario, or revisit any question you used a hint on.</p>
+            </div>
+      </section>
 
-        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
-      </li>
-      <li data-question-row="q10">
-        <strong>Write the handover: a short incident conclusion covering impact, affected assets, the attacker's objectives as far as the evidence supports them, and your three recommended next actions.</strong><span class="qtype qtype-self">Self review</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q10" placeholder="Incident conclusion and next actions"></textarea></div>
-        <ul class="answer-feedback"></ul>
+      <aside class="case-rail">
+        <div class="rail-block">
+          <h2 class="rail-title">Evidence</h2>
+          <p class="rail-note">Start at the board to find the alert, then prove it against
+          the events in Discover.</p>
+          <p class="linkrow">
+            <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Dashboard</a>
+            <a class="btn btn-outline btn-sm" data-kibana-link>Investigate in Discover</a>
+          </p>
+        </div>
 
-        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q10">I have re-read my written answer against the question and I am confident it covers every part</label>
+        <div class="rail-block">
+          <h2 class="rail-title">Progressive Hints</h2>
+          <div class="hint-actions">
+            <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+          </div>
 
-        <button class="reveal-btn" type="button" data-reveal="q10" hidden>Show solution</button>
-      </li>
-    </ol>
+          <details class="hint">
+                <summary>Hint 1 &mdash; the master table</summary>
+                <div class="hint-body">
+                  <p>Go to the SOC Triage Board and export or read all four alerts. For each one note
+                  <code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>,
+                  <code>host</code> and <code>timestamp</code>. Do this before looking at any events &mdash;
+                  the alert queue is your starting position, not the evidence.</p>
+                </div>
+              </details>
 
-    <div class="check-actions">
-      <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
-      <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
-      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
-      <a class="btn btn-outline" href="../instructions.html">Back to the guide</a>
-      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
-      <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
+              <details class="hint">
+                <summary>Hint 2 &mdash; the timeline</summary>
+                <div class="hint-body">
+                  <p>In Discover with the <code>normalized-events-*</code> data view, set the time picker to
+                  cover the whole incident and sort by <code>@timestamp</code> ascending. Read down the
+                  list. Every attacker in this incident sits outside the internal <code>10.0.0.0/8</code>
+                  range, so use that range to separate external sources from internal ones &mdash; and do not
+                  assume the external sources all belong to the same activity.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 3 &mdash; clustering</summary>
+                <div class="hint-body">
+                  <p>Group by <code>src_ip</code> first, then by host. More than one alert landed on
+                  <code>web-01</code>, from different source IPs, for different users, and generated by
+                  different rules. Take them in time order and work through them pair by pair: could one
+                  attacker plausibly have produced both, and does the timeline support or contradict
+                  that?</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 4 &mdash; the non-alerting near-misses</summary>
+                <div class="hint-body">
+                  <p>Search for suspicious-looking activity that has no alert:</p>
+                  <pre><code>event_type: "logon_failure"</code></pre>
+                  <p>and</p>
+                  <pre><code>event_type: "process_create" AND process.name: "powershell.exe"</code></pre>
+                  <p>One of these sits below a numeric threshold; the other sits outside a time window. Both
+                  are the reason the rules do not fire on everything.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 5 &mdash; ranking</summary>
+                <div class="hint-body">
+                  <p>Severity is a triage order, not a score. A <code>critical</code> alert means the
+                  attacker demonstrably succeeded; a <code>high</code> alert means something dangerous is
+                  in progress or just happened. Write down which of your alerts represents <em>confirmed
+                  compromise</em> rather than <em>attempted or in-progress activity</em>.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 6 &mdash; the handover</summary>
+                <div class="hint-body">
+                  <p>A handover is not a summary of the dashboard. It answers: what is the impact, which
+                  assets are affected, what did the attacker achieve, what are they likely to do next, and
+                  what do we do first. Keep it to a short paragraph plus three actions.</p>
+                </div>
+              </details>
+
+        </div>
+      </aside>
+
     </div>
-    <p class="check-gate-note" id="check-gate-note"><strong>Mark scenario complete</strong> unlocks once every checkable answer is correct. Use <strong>Check answers</strong> to find out where you are.</p>
-    <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
-    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
-      <span class="callout-title">Scenario completed</span>
-      <p class="mb0">Every checkable answer was correct and your progress is saved in this browser. That was the last scenario &mdash; revisit any hint you opened, or go back to the guide to review the investigation framework before you hand your work in.</p>
-    </div>
-  </section>
+  </div>
 
-  <section class="section">
-    <div class="section-head">
-      <span class="kicker">Progressive Hints</span>
-      <h2>Stuck? Reveal one step at a time.</h2>
-    </div>
-
-    <details class="hint">
-      <summary>Hint 1 &mdash; the master table</summary>
-      <div class="hint-body">
-        <p>Go to the SOC Triage Board and export or read all four alerts. For each one note
-        <code>rule_name</code>, <code>severity</code>, <code>src_ip</code>, <code>user</code>,
-        <code>host</code> and <code>timestamp</code>. Do this before looking at any events &mdash;
-        the alert queue is your starting position, not the evidence.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 2 &mdash; the timeline</summary>
-      <div class="hint-body">
-        <p>In Discover with the <code>normalized-events-*</code> data view, set the time picker to
-        cover the whole incident and sort by <code>@timestamp</code> ascending. Read down the
-        list. Every attacker in this incident sits outside the internal <code>10.0.0.0/8</code>
-        range, so use that range to separate external sources from internal ones &mdash; and do not
-        assume the external sources all belong to the same activity.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 3 &mdash; clustering</summary>
-      <div class="hint-body">
-        <p>Group by <code>src_ip</code> first, then by host. More than one alert landed on
-        <code>web-01</code>, from different source IPs, for different users, and generated by
-        different rules. Take them in time order and work through them pair by pair: could one
-        attacker plausibly have produced both, and does the timeline support or contradict
-        that?</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 4 &mdash; the non-alerting near-misses</summary>
-      <div class="hint-body">
-        <p>Search for suspicious-looking activity that has no alert:</p>
-        <pre><code>event_type: "logon_failure"</code></pre>
-        <p>and</p>
-        <pre><code>event_type: "process_create" AND process.name: "powershell.exe"</code></pre>
-        <p>One of these sits below a numeric threshold; the other sits outside a time window. Both
-        are the reason the rules do not fire on everything.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 5 &mdash; ranking</summary>
-      <div class="hint-body">
-        <p>Severity is a triage order, not a score. A <code>critical</code> alert means the
-        attacker demonstrably succeeded; a <code>high</code> alert means something dangerous is
-        in progress or just happened. Write down which of your alerts represents <em>confirmed
-        compromise</em> rather than <em>attempted or in-progress activity</em>.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 6 &mdash; the handover</summary>
-      <div class="hint-body">
-        <p>A handover is not a summary of the dashboard. It answers: what is the impact, which
-        assets are affected, what did the attacker achieve, what are they likely to do next, and
-        what do we do first. Keep it to a short paragraph plus three actions.</p>
-      </div>
-    </details>
-  </section>
-
-  <section class="section section-dark">
-    <div class="section-head">
-      <span class="kicker">Skills Practised</span>
-      <h2>What this exercise builds</h2>
-    </div>
-    <div class="grid grid-3">
-      <div class="card"><h3>End-to-end triage</h3><p class="mb0">Working a whole alert queue rather than a single hand-picked alert.</p></div>
-      <div class="card"><h3>Timeline construction</h3><p class="mb0">Merging multiple hosts and log sources onto one ordered axis.</p></div>
-      <div class="card"><h3>Clustering and attribution</h3><p class="mb0">Deciding whether separate alerts belong to one incident and how confident you are.</p></div>
-      <div class="card"><h3>Risk ranking</h3><p class="mb0">Prioritising by security impact and justifying the ordering.</p></div>
-      <div class="card"><h3>Noise elimination</h3><p class="mb0">Proving which suspicious activity is not a finding, and why.</p></div>
-      <div class="card"><h3>Shift handover</h3><p class="mb0">Producing a concise, actionable incident conclusion for the next responder.</p></div>
-    </div>
-  </section>
-
-</div>
 </main>
 
 <footer class="site-footer">
@@ -354,7 +451,7 @@
         <h4>Scenario 05</h4>
         <ul>
           <li><a href="scenario-4-linux-privilege-escalation.html">Previous: Linux escalation</a></li>
-          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a href="../scenarios.html">All scenarios</a></li>
           <li><a data-kibana-dash>Open SOC Triage Board</a></li>
         </ul>
       </div>
@@ -363,13 +460,6 @@
         <ul>
           <li><a data-kibana-link>Kibana</a></li>
           <li><a data-es-link>Elasticsearch</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Reminder</h4>
-        <ul>
-          <li>Do not guess &mdash; find the record</li>
-          <li>Every answer must cite evidence</li>
         </ul>
       </div>
     </div>
@@ -381,33 +471,21 @@
 </footer>
 
 <script src="../assets/js/lab.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/student-progress.js"></script>
 <script src="../assets/js/lab-check.js"></script>
 <script>
-  /* Single source of truth for the lab endpoints, so each URL lives only here.
-     data-kibana-dash   -> the SOC Triage Board, the student's alert queue
-     data-kibana-link   -> Discover, already pointed at normalized-events-*
-     data-kibana-alerts -> Discover, already pointed at security-alerts-*
-     data-es-link       -> the Elasticsearch API
-     Students are never sent to Kibana's generic home screen. */
+  /* Tell the server this scenario was opened, so it can record a start.
+     Fire and forget: the page must not wait on it, and a failure here
+     must not disturb the investigation. */
   (function () {
-    var ES = "http://localhost:9200";
-    var KIBANA = "http://localhost:5601";
-    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
-    function discover(dataViewId) {
-      return KIBANA + "/app/discover#/?_g=(time:(from:now-24h,to:now))" +
-             "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView))";
-    }
-    var EVENTS = discover("siem-normalized-events");
-    var ALERTS = discover("siem-security-alerts");
-    function wire(selector, url) {
-      document.querySelectorAll(selector).forEach(function (el) {
-        el.href = url; el.target = "_blank"; el.rel = "noopener";
-      });
-    }
-    wire("[data-kibana-dash]", DASH);
-    wire("[data-kibana-link]", EVENTS);
-    wire("[data-kibana-alerts]", ALERTS);
-    wire("[data-es-link]", ES);
+    var id = document.body.getAttribute("data-scenario");
+    if (!id) { return; }
+    fetch("/api/student/progress/start", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: id })
+    }).catch(function () { /* offline or signed out: not fatal */ });
   })();
 </script>
 </body>

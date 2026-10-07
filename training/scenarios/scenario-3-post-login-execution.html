@@ -20,26 +20,28 @@
     </div>
     <nav class="site-nav" aria-label="Main">
       <a href="../index.html">Home</a>
-      <a href="../instructions.html">How to Investigate</a>
-      <a href="../index.html#scenarios">Scenarios</a>
+      <a href="../instructions.html">Investigation Method</a>
+      <a href="../scenarios.html">Scenarios</a>
+      <span class="nav-identity" data-auth-identity hidden>Signed in</span>
+      <a href="#" class="nav-signout" data-auth-signout hidden>Sign out</a>
       <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
     </nav>
   </div>
 </header>
 
-<section class="page-head">
+<section class="page-head case-head">
   <div class="wrap">
     <div class="breadcrumb">
-      <a href="../index.html">Home</a> / <a href="../index.html#scenarios">Scenarios</a> / Scenario 03
+      <a href="../index.html">Home</a> / <a href="../scenarios.html">Scenarios</a> / Scenario 03
     </div>
-    <div class="hero-meta" style="margin:0 0 0.6rem">
-      <span class="chip chip-orange">Scenario 03</span>
+    <div class="case-meta">
+      <span class="case-id">Scenario 03</span>
       <span class="diff diff-medium">Medium</span>
-      <span class="chip chip-blue">Rule: suspicious_process_post_login</span>
-      <span class="chip chip-light">Expected severity: high</span>
+<span class="chip chip-blue">Rule: suspicious_process_post_login</span>
+<span class="chip chip-light">Expected severity: high</span>
     </div>
     <h1>Suspicious Post-Login Process Execution</h1>
-    <p class="sub">
+    <p class="case-objective">
       A Windows account authenticated, then launched a command shell seconds later.
       Measure the gap, read the command line, and explain why it matters.
     </p>
@@ -47,287 +49,374 @@
 </section>
 
 <main id="main">
-<div class="wrap narrow">
 
-  <section class="section">
-    <div class="section-head">
-      <span class="kicker">Incident Brief</span>
-      <h2>Objective and background</h2>
-    </div>
+  <div class="wrap measure-none">
+    <div class="layout-split">
 
-    <div class="callout callout-info">
-      <span class="callout-title">Security objective</span>
-      <p>Establish that a user authenticated and then executed a suspicious process on the same
-      host within the detection window, and determine from the command line what the actor was
-      attempting.</p>
-    </div>
+      <section class="ws-section workspace-brief">
+        <div class="ws-head">
+          <span class="kicker">Incident Brief</span>
+          <h2>What you are working</h2>
+        </div>
 
-    <div class="callout callout-warn">
-      <span class="callout-title">Incident story</span>
-      <p>
-        Endpoint telemetry on a Windows application server shows an account signing in and then
-        immediately spawning a shell. There is a high-severity alert on the SOC Triage Board for
-        this. Unlike Scenarios 01 and 02 there are no preceding failed logons here &mdash; the
-        authentication itself succeeded legitimately, and the risk is in what happened
-        <em>after</em> it.
-      </p>
-    </div>
+            <div class="callout callout-info">
+              <span class="callout-title">Security objective</span>
+              <p>Establish that a user authenticated and then executed a suspicious process on the same
+              host within the detection window, and determine from the command line what the actor was
+              attempting.</p>
+            </div>
 
-    <div class="card">
-      <h3>What you know at the start</h3>
-      <ul>
-        <li>Windows process creation is logged as <code>process_create</code> with a <code>process</code> object.</li>
-        <li>The host in question is a Windows application server, not the Linux web server.</li>
-        <li>The alert you need is on a different host from Scenarios 01 and 02.</li>
-      </ul>
-    </div>
+            <div class="callout callout-warn">
+              <span class="callout-title">Incident story</span>
+              <p>
+                Endpoint telemetry on a Windows application server shows an account signing in and then
+                immediately spawning a shell. There is a high-severity alert on the SOC Triage Board for
+                this. Unlike Scenarios 01 and 02 there are no preceding failed logons here &mdash; the
+                authentication itself succeeded legitimately, and the risk is in what happened
+                <em>after</em> it.
+              </p>
+            </div>
 
-    <div class="card card-accent" style="margin-top:1rem">
-      <h3>Investigation task</h3>
-      <ol class="steps">
-        <li><strong>Locate the alert</strong>It is a <code>suspicious_process_post_login</code> alert on a Windows host.</li>
-        <li><strong>Measure the timing</strong>Find the logon and the process creation. What is the exact gap, and how does it compare to the rule's window?</li>
-        <li><strong>Read the command line</strong>The full argument string is the most important evidence in this scenario.</li>
-        <li><strong>Interpret the commands</strong>Explain what each part of the command line is trying to achieve.</li>
-        <li><strong>Check the parent process</strong>The <code>parent_name</code> field tells you how the shell was launched.</li>
-        <li><strong>State the finding</strong>What does this sequence indicate about the account's intent?</li>
-      </ol>
-      <p class="linkrow" style="margin-top:1rem">
-        <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Triage Board</a>
-        <a class="btn btn-outline btn-sm" data-kibana-link>Open Kibana Discover</a>
-      </p>
-    </div>
-  </section>
+            <div class="ws-note">
+              <h3>What you know at the start</h3>
+              <ul>
+                <li>Windows process creation is logged as <code>process_create</code> with a <code>process</code> object.</li>
+                <li>The host in question is a Windows application server, not the Linux web server.</li>
+                <li>The alert you need is on a different host from Scenarios 01 and 02.</li>
+              </ul>
+            </div>
 
-<!-- ============================================ INVESTIGATION WORKFLOW -->
-<section class="section">
- <div class="section-head">
-   <span class="kicker">Investigation workflow</span>
-   <h2>Read, find, investigate, answer</h2>
-   <p><strong>This page is the brief.</strong> It tells you what happened and what you are
-   being asked to work out. Nothing here is the answer &mdash; the SOC Dashboard and Kibana
-   Discover are where you look it up.</p>
- </div>
 
- <ol class="steps">
-   <li><strong>Read the scenario</strong>Understand what you are being asked to investigate.</li>
-   <li><strong>Open the SOC Dashboard</strong>Use the dashboard to locate the alert related to
-   this scenario. It is called the SOC Triage Board.</li>
-   <li><strong>Investigate the evidence</strong>Follow the alert's evidence into the underlying
-   normalized events in Kibana Discover. Check timestamps, host, user, source IP, event type,
-   process information and any other relevant fields.</li>
-   <li><strong>Answer the questions</strong>Use the evidence you found in Kibana to answer the
-   investigation questions.</li>
- </ol>
 
- <div class="grid grid-2 workflow" style="margin-top:1.1rem">
-   <div class="card workflow-step">
-     <span class="step-num" aria-hidden="true">1</span>
-     <div class="step-body">
-       <span class="step-label">Alerts and triage</span>
-       <h3>SOC Dashboard</h3>
-       <p>Every alert this SIEM raised, with its severity, rule name and reasoning. Start here
-       to find the alert this scenario is about.</p>
-       <p class="tool-answers">Tells you <strong>what was detected</strong>.</p>
-       <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Dashboard</a>
-     </div>
-   </div>
-   <div class="card workflow-step">
-     <span class="step-num" aria-hidden="true">2</span>
-     <div class="step-body">
-       <span class="step-label">Underlying events</span>
-       <h3>Kibana Discover</h3>
-       <p>The individual normalized events behind an alert, already pointed at the
-       <code>normalized-events-*</code> data view.</p>
-       <p class="tool-answers">Lets you investigate <strong>why it was detected</strong>.</p>
-       <a class="btn btn-outline btn-sm" data-kibana-link>Investigate events in Kibana</a>
-     </div>
-   </div>
- </div>
-</section>
+        <div class="ws-sub">
+          <span class="kicker">Investigation task</span>
+          <h3>Your mission</h3>
+          <ol class="steps">
+                <li><strong>Locate the alert</strong>It is a <code>suspicious_process_post_login</code>
+                alert on a Windows host.</li>
+                <li><strong>Measure the timing</strong>Find the logon and the process creation. What is the
+                exact gap, and how does it compare to the rule's window?</li>
+                <li><strong>Read the command line</strong>The full argument string is the most important
+                evidence in this scenario. Explain what each part is trying to achieve, and read
+                <code>parent_name</code> to see how the shell was launched.</li>
+                <li><strong>State the finding</strong>What does this sequence indicate about the account's
+                intent?</li>
+              </ol>
+        </div>
+      </section>
 
-  <section class="section section-alt">
-    <div class="section-head">
-   <span class="kicker">Investigation &amp; Evidence</span>
-   <h2>Answer every question</h2>
-   <p>Use the alert you found on the SOC Dashboard and the underlying normalized
-   events in Kibana Discover to answer these questions. Every answer must be
-   supported by a record you found in the SIEM &mdash; do not guess.</p>
-   <p><strong>Nine questions total.</strong> 6 are automatically checked. 3 are questions you assess yourself against the evidence you found.</p>
-</div>
+      <section class="ws-section workspace-questions">
+        <div class="ws-head">
 
-    <p class="saved-note" id="saved-note">Saved in this browser only.</p>
-    <ol class="qlist">
-      <li data-question-row="q1">
-        <strong>Which host and which user account are involved, and from which source IP did the login come?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q1" placeholder="Host, user, src_ip"></textarea></div>
-        <ul class="answer-feedback"></ul>
+          <span class="kicker">Investigation &amp; Evidence</span>
+          <h2>Work the investigation</h2>
+          <p class="qintro">Use SIEM evidence for every answer. Investigate, then answer one objective at a time: choose <strong>Check answer</strong> on each question as you go, and submit the final analyst finding at the end to state your assessment. 7 evidence questions, then the finding.</p>
+          <p><strong>8 questions total.</strong> 7 are evidence questions, checked one at a time. The last one is the final analyst finding.</p>
 
-        <button class="reveal-btn" type="button" data-reveal="q1" hidden>Show solution</button>
+        </div>
+
+        <p class="saved-note" id="saved-note">Draft saved in this browser. Progress saves to your account.</p>
+
+
+<ol class="qlist qlist-investigation" aria-label="Investigation questions">
+      <li class="q-item" data-question-row="s3e1" data-control="identifier" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 1</span>
+          <div class="q-titles">
+            <h3 class="q-label">Host</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Identify the host this alert concerns.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s3e1-input">Source identifier</label>
+                <input class="answer-control" id="s3e1-input" type="text" data-question="s3e1" placeholder="Your answer">
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e1">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e1" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e1" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q2">
-        <strong>What was the exact timestamp of the successful logon, and of the suspicious process creation?</strong><span class="qtype qtype-self">Self review</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q2" placeholder="Both timestamps"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q2">I have re-read my written answer against the question and I am confident it covers every part</label>
-
-        <button class="reveal-btn" type="button" data-reveal="q2" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e2" data-control="identifier" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 2</span>
+          <div class="q-titles">
+            <h3 class="q-label">Account</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Identify the account that authenticated and then ran the process.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, then the logon event</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s3e2-input">Source identifier</label>
+                <input class="answer-control" id="s3e2-input" type="text" data-question="s3e2" placeholder="Your answer">
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e2">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e2" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e2" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q3">
-        <strong>How many seconds elapsed between the logon and the process creation? What is the rule's configured window?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q3" placeholder="Elapsed seconds + window"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q3" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e3" data-control="identifier" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 3</span>
+          <div class="q-titles">
+            <h3 class="q-label">Process created</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Identify the process that was created after the logon.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> Kibana Discover, event_type process_create for that host</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s3e3-input">Source identifier</label>
+                <input class="answer-control" id="s3e3-input" type="text" data-question="s3e3" placeholder="Your answer">
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e3">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e3" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e3" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q4">
-        <strong>What process was created, and what was its full command line?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q4" placeholder="Process name + full command line"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q4" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e4" data-control="ordering" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 4</span>
+          <div class="q-titles">
+            <h3 class="q-label">Command sequence</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine the order in which the operations in the command line ran.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> Kibana Discover, process.command_line</p>
+        <div class="q-answer">
+                <p class="ord-help">Put these in the order they happened. Use the arrows, then check your answer.</p>
+                <ol class="answer-control ordered-list" data-question="s3e4">
+                  <li><span class="ord-label">re-enable a disabled built-in account</span><button type="button" class="ord-move" data-dir="up" aria-label="Move re-enable a disabled built-in account earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move re-enable a disabled built-in account later">&#9660;</button></li>
+                  <li><span class="ord-label">print the current identity</span><button type="button" class="ord-move" data-dir="up" aria-label="Move print the current identity earlier">&#9650;</button><button type="button" class="ord-move" data-dir="down" aria-label="Move print the current identity later">&#9660;</button></li>
+                </ol>
+                <textarea class="answer-control ord-value" data-question="s3e4" rows="2" hidden></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e4">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e4" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e4" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q5">
-        <strong>Break the command line into its separate operations. What is each part trying to do?</strong><span class="qtype qtype-self">Self review</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q5" placeholder="Operation by operation"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q5">I have re-read my written answer against the question and I am confident it covers every part</label>
-
-        <button class="reveal-btn" type="button" data-reveal="q5" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e5" data-control="duration" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 5</span>
+          <div class="q-titles">
+            <h3 class="q-label">Elapsed time after logon</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine how soon after the logon the process was created.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> Kibana Discover, the alert's two evidence events</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s3e5-input">Elapsed time</label>
+                <input class="answer-control" id="s3e5-input" type="text" data-question="s3e5" placeholder="e.g. 132 seconds, or 2 min 12 s">
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e5">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e5" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e5" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q6">
-        <strong>Which parent process launched the shell, and what does that indicate about the session type?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q6" placeholder="parent_name + interpretation"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q6" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e6" data-control="finding" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 6</span>
+          <div class="q-titles">
+            <h3 class="q-label">Parent process and what it implies</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Identify the parent process and what it indicates about the session.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> Kibana Discover, process.parent_name on the process_create event</p>
+        <div class="q-answer">
+                <label class="sr-only" for="s3e6-input">Your finding</label>
+                <textarea class="answer-control" id="s3e6-input" data-question="s3e6" rows="7" placeholder="Your assessment: the evidence you read, what it means, the consequence, and what you would do."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e6">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e6" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e6" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q7">
-        <strong>Why does the SIEM treat this as suspicious? Name the rule and the two conditions it checks.</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q7" placeholder="Rule + conditions"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q7" hidden>Show solution</button>
+      <li class="q-item" data-question-row="s3e7" data-control="boolean" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Evidence 7</span>
+          <div class="q-titles">
+            <h3 class="q-label">Relationship to the authentication attacks</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not started</span>
+        </div>
+        <p class="q-objective">Determine whether the evidence supports a link to the authentication activity.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, comparing host, user and source address</p>
+        <div class="q-answer">
+                <span class="answer-control answer-choice" role="radiogroup" aria-label="Your conclusion">
+                  <button type="button" class="btn-choice" data-choice="yes" data-for="s3e7">Yes</button>
+                  <button type="button" class="btn-choice" data-choice="no" data-for="s3e7">No</button>
+                </span>
+                <textarea class="answer-control answer-why" data-question="s3e7" rows="2" placeholder="Why? One or two sentences."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3e7">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3e7" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3e7" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q8">
-        <strong>Are the two events on this host related to the brute force activity in Scenarios 01 and 02? How do you know?</strong><span class="qtype qtype-checked">Evidence checked</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q8" placeholder="Correlation or independence, with reasons"></textarea></div>
-        <ul class="answer-feedback"></ul>
-
-        <button class="reveal-btn" type="button" data-reveal="q8" hidden>Show solution</button>
+      <li class="q-item q-item-final" data-question-row="s3f" data-control="finding" data-state="not_started">
+        <div class="q-head">
+          <span class="q-number">Finding</span>
+          <div class="q-titles">
+            <h3 class="q-label">Final analyst finding</h3>
+          </div>
+          <span class="q-state" data-state-chip>Not submitted</span>
+        </div>
+        <p class="q-objective q-objective-final">State the assessment: who, where, from where, when, what they ran, why it is suspicious, and the response.</p>
+        <p class="q-evidence"><span class="q-evidence-label">Where to look</span> SOC Triage Board &gt; Alert Queue, plus the alert's two evidence events (logon and process_create)</p>
+        <details class="q-rubric">
+          <summary>What a complete finding covers</summary>
+          <ul class="q-rubric-list">
+            <li><strong>evidence: who, where, from where and when</strong></li>
+            <li><strong>evidence: the command activity, in order</strong></li>
+            <li><strong>assessment: why it is suspicious</strong></li>
+            <li><strong>impact: what an attacker now holds</strong></li>
+            <li><strong>response: immediate containment</strong></li>
+          </ul>
+          <p class="q-rubric-note">Cover all four. EVIDENCE: the account, the host, the source address, the interval after authenticating, the process, and both operations in its command line in the order they ran. ASSESSMENT: what those operations are for, and what the parent process tells you about who was driving. IMPACT: what an attacker now holds on that host. RECOMMENDED RESPONSE: the immediate steps and why they are urgent. Naming the process without assessing it does not satisfy the rubric.</p>
+        </details>
+        <div class="q-answer">
+                <label class="sr-only" for="s3f-input">Your finding</label>
+                <textarea class="answer-control" id="s3f-input" data-question="s3f" rows="7" placeholder="Your assessment: the evidence you read, what it means, the consequence, and what you would do."></textarea>
+        </div>
+        <div class="q-actions">
+          <button type="button" class="btn btn-primary btn-check" data-check="s3f">Check answer</button>
+          <button type="button" class="btn btn-outline btn-hint" data-hint="s3f" hidden>Show a hint</button>
+          <button type="button" class="btn btn-outline btn-reveal" data-reveal="s3f" hidden>Show the answer</button>
+          <span class="q-check-status" data-check-status role="status" aria-live="polite"></span>
+        </div>
+        <div class="q-feedback" data-feedback hidden></div>
       </li>
-      <li data-question-row="q9">
-        <strong>State the final security finding and the recommended immediate response.</strong><span class="qtype qtype-self">Self review</span><span class="answer-status" hidden></span>
-        <div class="answer-box"><textarea data-question="q9" placeholder="Finding + response"></textarea></div>
-        <ul class="answer-feedback"></ul>
+</ol>
 
-        <label class="self-review-check" hidden><input type="checkbox" data-self-review="q9">I have re-read my written answer against the question and I am confident it covers every part</label>
+                <div class="check-actions check-actions-investigation">
+              <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
+              <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
+              <a class="btn btn-blue" href="scenario-4-linux-privilege-escalation.html">Next scenario</a>
+              <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
+            </div>
+            <p class="check-gate-note" id="check-gate-note">Work through the evidence
+            questions one at a time and use <strong>Check answer</strong> on each. The
+            scenario is finished when every evidence question <em>and</em> the final
+            analyst finding are correct.</p>
+            <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
+            <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
+              <span class="callout-title">Scenario completed</span>
+              <p class="mb0">Every evidence question and your final analyst finding were
+              correct, and your progress is saved to your account. Move on to the next
+              scenario, or revisit any question you used a hint on.</p>
+            </div>
+      </section>
 
-        <button class="reveal-btn" type="button" data-reveal="q9" hidden>Show solution</button>
-      </li>
-    </ol>
+      <aside class="case-rail">
+        <div class="rail-block">
+          <h2 class="rail-title">Evidence</h2>
+          <p class="rail-note">Start at the board to find the alert, then prove it against
+          the events in Discover.</p>
+          <p class="linkrow">
+            <a class="btn btn-blue btn-sm" data-kibana-dash>Open SOC Dashboard</a>
+            <a class="btn btn-outline btn-sm" data-kibana-link>Investigate in Discover</a>
+          </p>
+        </div>
 
-    <div class="check-actions">
-      <button class="btn btn-primary" id="check-answers" type="button">Check answers</button>
-      <button class="btn btn-outline" id="mark-done" type="button" disabled>Mark scenario complete</button>
-      <button class="btn btn-outline" id="undo-done" type="button" style="display:none">Undo</button>
-      <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
-      <a class="btn btn-blue" href="scenario-4-linux-privilege-escalation.html">Next scenario</a>
-      <span class="check-status" id="check-status" role="status" aria-live="polite"></span>
+        <div class="rail-block">
+          <h2 class="rail-title">Progressive Hints</h2>
+          <div class="hint-actions">
+            <button class="btn btn-outline btn-sm" id="toggle-hints" type="button">Show all hints</button>
+          </div>
+
+          <details class="hint">
+                <summary>Hint 1 &mdash; finding the right alert</summary>
+                <div class="hint-body">
+                  <p>The SOC Triage Board contains <em>two</em> alerts from the
+                  <code>suspicious_process_post_login</code> rule. Scenario 04 is the other one. This
+                  scenario is the Windows host &mdash; look at the "Alerts by Host"
+                  panel, or filter the alerts by <code>host</code> for a Windows-looking name such as
+                  <code>app-01</code> rather than <code>web-01</code>.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 2 &mdash; the timing evidence</summary>
+                <div class="hint-body">
+                  <p>The alert's <code>first_seen</code> is the logon and <code>last_seen</code> is the
+                  process creation &mdash; the SIEM already recorded the delta for you. Subtract them to
+                  get the gap in seconds. The rule parameter is <code>time_after_login_minutes</code> in
+                  <code>config/app-config.yaml</code>.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 3 &mdash; reading the command line</summary>
+                <div class="hint-body">
+                  <p>Expand the <code>process</code> object on the evidence event and read
+                  <code>command_line</code> in full. Shell chains are usually separated by
+                  <code>&amp;&amp;</code>. Read the raw Windows event as well: the
+                  <code>raw_event</code> field contains the original 4688 record.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 4 &mdash; interpreting the commands</summary>
+                <div class="hint-body">
+                  <p>Consider each part separately. One command identifies the current account and its
+                  privilege level. The other modifies the local <code>administrator</code> account &mdash;
+                  consider what enabling or re-enabling a built-in administrator account is used for after
+                  an attacker already has a foothold.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 5 &mdash; the parent process</summary>
+                <div class="hint-body">
+                  <p><code>process.parent_name</code> and <code>parent_pid</code> are on the same event.
+                  Think about which Windows component launches a shell directly at logon, and contrast it
+                  with the shells that appear in the benign <code>process_create</code> events on the same
+                  host.</p>
+                </div>
+              </details>
+
+              <details class="hint">
+                <summary>Hint 6 &mdash; is it related to the brute force?</summary>
+                <div class="hint-body">
+                  <p>Compare the hosts, the users and the source IPs. Then compare the timing. If they do
+                  not share an identity or a source, they are separate activity and you should report them
+                  as such &mdash; do not merge unrelated alerts into a single story.</p>
+                </div>
+              </details>
+
+        </div>
+      </aside>
+
     </div>
-    <p class="check-gate-note" id="check-gate-note"><strong>Mark scenario complete</strong> unlocks once every checkable answer is correct. Use <strong>Check answers</strong> to find out where you are.</p>
-    <div id="check-result" class="callout" role="status" aria-live="polite" hidden></div>
-    <div class="callout callout-ok" id="done-banner" style="display:none; margin-top:1rem">
-      <span class="callout-title">Scenario completed</span>
-      <p class="mb0">Every checkable answer was correct and your progress is saved in this browser. Move on to the next scenario, or revisit any hint you opened.</p>
-    </div>
-  </section>
+  </div>
 
-  <section class="section">
-    <div class="section-head">
-      <span class="kicker">Progressive Hints</span>
-      <h2>Stuck? Reveal one step at a time.</h2>
-    </div>
-
-    <details class="hint">
-      <summary>Hint 1 &mdash; finding the right alert</summary>
-      <div class="hint-body">
-        <p>The SOC Triage Board contains <em>two</em> alerts from the
-        <code>suspicious_process_post_login</code> rule. Scenario 04 is the other one. This
-        scenario is the Windows host &mdash; look at the "Suspicious Hosts by Alert Count"
-        panel, or filter the alerts by <code>host</code> for a Windows-looking name such as
-        <code>app-01</code> rather than <code>web-01</code>.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 2 &mdash; the timing evidence</summary>
-      <div class="hint-body">
-        <p>The alert's <code>first_seen</code> is the logon and <code>last_seen</code> is the
-        process creation &mdash; the SIEM already recorded the delta for you. Subtract them to
-        get the gap in seconds. The rule parameter is <code>time_after_login_minutes</code> in
-        <code>config/app-config.yaml</code>.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 3 &mdash; reading the command line</summary>
-      <div class="hint-body">
-        <p>Expand the <code>process</code> object on the evidence event and read
-        <code>command_line</code> in full. Shell chains are usually separated by
-        <code>&amp;&amp;</code>. Read the raw Windows event as well: the
-        <code>raw_event</code> field contains the original 4688 record.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 4 &mdash; interpreting the commands</summary>
-      <div class="hint-body">
-        <p>Consider each part separately. One command identifies the current account and its
-        privilege level. The other modifies the local <code>administrator</code> account &mdash;
-        consider what enabling or re-enabling a built-in administrator account is used for after
-        an attacker already has a foothold.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 5 &mdash; the parent process</summary>
-      <div class="hint-body">
-        <p><code>process.parent_name</code> and <code>parent_pid</code> are on the same event.
-        Think about which Windows component launches a shell directly at logon, and contrast it
-        with the shells that appear in the benign <code>process_create</code> events on the same
-        host.</p>
-      </div>
-    </details>
-
-    <details class="hint">
-      <summary>Hint 6 &mdash; is it related to the brute force?</summary>
-      <div class="hint-body">
-        <p>Compare the hosts, the users and the source IPs. Then compare the timing. If they do
-        not share an identity or a source, they are separate activity and you should report them
-        as such &mdash; do not merge unrelated alerts into a single story.</p>
-      </div>
-    </details>
-  </section>
-
-  <section class="section section-dark">
-    <div class="section-head">
-      <span class="kicker">Skills Practised</span>
-      <h2>What this exercise builds</h2>
-    </div>
-    <div class="grid grid-3">
-      <div class="card"><h3>Command-line analysis</h3><p class="mb0">Extracting intent from process arguments &mdash; a core analyst skill on any platform.</p></div>
-      <div class="card"><h3>Sub-second forensics</h3><p class="mb0">Using millisecond timestamps to prove causality between two events.</p></div>
-      <div class="card"><h3>Process lineage</h3><p class="mb0">Reading parent process relationships to understand how execution started.</p></div>
-      <div class="card"><h3>Windows knowledge</h3><p class="mb0">Understanding built-in accounts, shells and the meaning of interactive logons.</p></div>
-      <div class="card"><h3>Rule mechanics</h3><p class="mb0">Knowing which allowlist and denylist the rule applies to a process name.</p></div>
-      <div class="card"><h3>Independence checking</h3><p class="mb0">Deciding whether two alerts belong to one incident or two.</p></div>
-    </div>
-  </section>
-
-</div>
 </main>
 
 <footer class="site-footer">
@@ -341,7 +430,7 @@
         <h4>Scenario 03</h4>
         <ul>
           <li><a href="scenario-2-successful-brute-force.html">Previous: successful brute force</a></li>
-          <li><a href="../index.html#scenarios">All scenarios</a></li>
+          <li><a href="../scenarios.html">All scenarios</a></li>
           <li><a data-kibana-dash>Open SOC Triage Board</a></li>
         </ul>
       </div>
@@ -350,13 +439,6 @@
         <ul>
           <li><a data-kibana-link>Kibana</a></li>
           <li><a data-es-link>Elasticsearch</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Reminder</h4>
-        <ul>
-          <li>Do not guess &mdash; find the record</li>
-          <li>Every answer must cite evidence</li>
         </ul>
       </div>
     </div>
@@ -368,33 +450,21 @@
 </footer>
 
 <script src="../assets/js/lab.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/student-progress.js"></script>
 <script src="../assets/js/lab-check.js"></script>
 <script>
-  /* Single source of truth for the lab endpoints, so each URL lives only here.
-     data-kibana-dash   -> the SOC Triage Board, the student's alert queue
-     data-kibana-link   -> Discover, already pointed at normalized-events-*
-     data-kibana-alerts -> Discover, already pointed at security-alerts-*
-     data-es-link       -> the Elasticsearch API
-     Students are never sent to Kibana's generic home screen. */
+  /* Tell the server this scenario was opened, so it can record a start.
+     Fire and forget: the page must not wait on it, and a failure here
+     must not disturb the investigation. */
   (function () {
-    var ES = "http://localhost:9200";
-    var KIBANA = "http://localhost:5601";
-    var DASH = KIBANA + "/app/dashboards#/view/siem-soc-triage-board";
-    function discover(dataViewId) {
-      return KIBANA + "/app/discover#/?_g=(time:(from:now-24h,to:now))" +
-             "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView))";
-    }
-    var EVENTS = discover("siem-normalized-events");
-    var ALERTS = discover("siem-security-alerts");
-    function wire(selector, url) {
-      document.querySelectorAll(selector).forEach(function (el) {
-        el.href = url; el.target = "_blank"; el.rel = "noopener";
-      });
-    }
-    wire("[data-kibana-dash]", DASH);
-    wire("[data-kibana-link]", EVENTS);
-    wire("[data-kibana-alerts]", ALERTS);
-    wire("[data-es-link]", ES);
+    var id = document.body.getAttribute("data-scenario");
+    if (!id) { return; }
+    fetch("/api/student/progress/start", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scenario: id })
+    }).catch(function () { /* offline or signed out: not fatal */ });
   })();
 </script>
 </body>

@@ -26,6 +26,7 @@ when every check passes.
 | 2.2 | Parsers validated | `python -m pytest tests/normalization -q` | All pass |
 | 2.3 | Schema validation | `python -m pytest tests/normalization/test_schema.py -q` | All pass |
 | 2.4 | Events indexed | `python -m src.main ingest --log-dir .\logs\generated` | `indexed=50` (or more), no errors |
+| 2.5 | Only one dataset in the directory | `python -m src.main ingest --log-dir .\logs\generated --dry-run` | Accepted. If it prints `Refusing to ingest`, the directory holds both `enterprise-14d_*` and the per-scenario fixtures — rebuild one of them, don't work around it (`docs/DATASET.md` §2.1) |
 | 2.5 | Schema in ES | `Invoke-RestMethod "http://localhost:9200/normalized-events-*/_search?size=1&pretty"` | `@timestamp`, `host`, `user`, `src_ip`, `event_type`, `raw_event` present |
 | 2.6 | Daily rolling index | `Invoke-RestMethod http://localhost:9200/_cat/indices/normalized-events-*` | One index named `normalized-events-YYYY-MM-DD` |
 | 2.7 | Idempotent re-ingest | Re-run 2.4, then `python -m src.main stats` | Event count unchanged |
@@ -64,13 +65,35 @@ Live hosts are optional in the lab; the sample path exercises the identical pars
 
 | # | Check | Command / action | Expected |
 |---|---|---|---|
-| 5.1 | Saved objects import | Stack Management → Saved Objects → Import `dashboards\soc-triage-board.ndjson` | 7 objects imported, no errors |
+| 5.1 | Saved objects import | Stack Management → Saved Objects → Import `dashboards\soc-triage-board.ndjson` | 11 objects imported, no errors |
 | 5.2 | Data views exist | Stack Management → Data Views | `security-alerts-*`, `normalized-events-*` |
-| 5.3 | Dashboard renders | Open **SOC Triage Board**, time picker `Last 24 hours` | 4 panels populated |
-| 5.4 | Severity filter | Add filter `severity is critical` | Counts and tables update |
-| 5.5 | Rule filter | Add filter `rule_name is brute_force` | Only Rule 1 alerts shown |
-| 5.6 | Source IP filter | Add filter `src_ip is 203.0.113.45` | Only that source shown |
-| 5.7 | Drill-down | Click an alert → `evidence_event_ids` → Discover | The triggering events are listed |
+| 5.3 | Dashboard renders | Open **SOC Triage Board**; leave the saved range at `2026-09-15T00:00:00.000Z → 2026-09-30T23:59:59.999Z` | 8 panels populated, no "No results"; time picker shows absolute dates, not "Last N days" |
+| 5.4 | Alert panels | Alert Queue, Alerts by Severity, Alert Timeline, Alerts by Host | 4 alerts listed; 3 high, 1 critical; alerts on 3 separate days |
+| 5.5 | Activity panels | Authentication Activity, Top Source IPs by Event Volume, Event Type Mix, Event Volume by Host | Non-empty from `normalized-events-*`; 5 event types, 31 hosts, far more than 4 source addresses |
+| 5.6 | Severity filter | Add filter `severity is critical` | Counts and tables update |
+| 5.7 | Rule filter | Add filter `rule_name is brute_force` | Only Rule 1 alerts shown |
+| 5.8 | Source IP filter | Add filter `src_ip is 203.0.113.45` | Only that source shown |
+| 5.9 | Drill-down | Click an alert → `evidence_event_ids` → Discover | The triggering events are listed |
+| 5.10 | No panel errors | Read the board | Zero "Invalid visualization type", zero "Cannot read properties of", no blank panel |
+| 5.11 | Alert Queue is a table | Look at the first panel | One row per alert with `timestamp`, `severity`, `rule_name`, `src_ip`, `user`, `host`, `evidence_count`; no `reasoning` column |
+| 5.12 | Saved range is applied | Change the time picker to something narrow, reload, reopen the board | The board comes back on `2026-09-15 → 2026-09-30` with 4 alerts. If the picker reads "Last 15 minutes" the board has stopped using its saved range — `timeRestore` is `false`, which means *ignore* the saved range, not *pin* it |
+| 5.13 | Discover deep-link works | On a training page, click **Investigate in Discover** | Discover opens on the absolute range and shows 9,584 events / 4 alerts — not "Last 15 minutes" and zero results |
+
+### 5.10 and 5.11 are the ones that matter
+
+Checks 5.1–5.9 can all pass while the board is visibly broken. Phase 5 shipped
+once in exactly that state: the import succeeded, `validate()` returned no
+errors, and 87 of 98 tests passed, yet four panels rendered an error string
+because they named visualization types Kibana 8.13 does not register.
+
+- The queue is a **Lens `lnsDatatable`**, not a TSVB panel: `discover` is an
+  application and TSVB's `table` type no longer exists.
+- The two ranked bars are **`horizontal_bar`**, not `bar`.
+- Authentication Activity is scoped by a `terms` bucket's `include` list, not by
+  a saved KQL filter, which is what made it fail to render.
+
+Saved-object validity and renderability are different properties. A check that
+cannot see a browser cannot certify a dashboard.
 
 ---
 

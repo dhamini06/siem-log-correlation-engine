@@ -103,11 +103,16 @@ def test_init_db_creates_the_file_and_directory(tmp_path):
 
 
 def test_init_db_creates_all_tables(db):
-    assert {"schema_meta", "users", "sessions", "scenario_checks"} <= tables(db)
+    assert {"schema_meta", "users", "sessions", "scenario_checks",
+            "student_progress", "student_progress_questions"} <= tables(db)
 
 
-def test_schema_version_is_initialised_to_one(db):
-    assert labdb.get_schema_version(db) == labdb.SCHEMA_VERSION == 1
+def test_schema_version_matches_the_module(db):
+    # Asserted against the constant, not a literal, on purpose: pinning the
+    # number here meant every additive schema change broke this test for no
+    # reason. What matters is that the stamped version and the code agree.
+    assert labdb.get_schema_version(db) == labdb.SCHEMA_VERSION
+    assert labdb.SCHEMA_VERSION >= 2, "student_progress arrived in version 2"
 
 
 def test_schema_version_is_none_before_initialisation(tmp_path):
@@ -125,7 +130,7 @@ def test_repeated_init_is_idempotent_and_preserves_data(db):
     labdb.init_db(db)
 
     assert labdb.get_user_by_id(user_id, db) == before
-    assert labdb.get_schema_version(db) == 1
+    assert labdb.get_schema_version(db) == labdb.SCHEMA_VERSION
     assert len(history(db, user_id)) == 0
 
 

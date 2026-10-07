@@ -30,6 +30,7 @@ if SCRIPTS not in sys.path:
 
 import auth  # noqa: E402
 import labdb  # noqa: E402
+import reveal_policy  # noqa: E402
 import serve_training  # noqa: E402
 
 REAL_DB = os.path.join(ROOT, "data", "training.db")
@@ -156,6 +157,7 @@ def lab_server(tmp_path):
         *a, directory=TRAINING_DIR, **kw
     )
     server = serve_training.LabServer(("127.0.0.1", 0), handler)
+    reveal_policy.reset()
     server.db_path = db_path
     server.force_secure_cookies = False
 
@@ -262,7 +264,7 @@ def test_schema_initialisation_stays_idempotent(db):
     labdb.init_db(db)
 
     assert len(_raw_rows(db, "SELECT * FROM users")) == before
-    assert labdb.get_schema_version(db) == labdb.SCHEMA_VERSION == 1
+    assert labdb.get_schema_version(db) == labdb.SCHEMA_VERSION
 
 
 # ----------------------------------------------------------------- passwords
@@ -817,25 +819,48 @@ def test_existing_answer_endpoints_still_work(client):
         {
             "scenario": "scenario-1",
             "answers": {
-                "q1": "203.0.113.45 and web-01",
-                "q2": "root 5 times and admin 5 times",
-                "q3": "10 failed logons spanning 132 seconds",
-                "q4": "brute_force; min_failures: 5 and time_window_minutes: 5",
-                "q5": "No, there is no logon_success for that source IP",
-                "q6": "Three events on fw-01: 203.0.113.45 to 10.0.0.10 port 22",
-                "q7": "svc_backup from 10.0.0.30 had 4 failures, below the threshold of 5",
+                "s1e1": "203.0.113.45",
+                "s1e2": "web-01",
+                "s1e3": "10 failed logons",
+                "s1e4": "132 seconds (2 min 12 s)",
+                "s1e5": "2 accounts: root and admin",
+                "s1e6": "22 (SSH)",
+                "s1e7": "3 blocked connections",
+                "s1e8": "svc_backup had 4 failures, which is below min_failures of 5",
+                "s1f": ("An external host ran an automated credential attack against SSH on "
+                        "web-01: source 203.0.113.45, ten failed authentications spread "
+                        "across multiple account names, all inside 132 seconds, with three "
+                        "blocked perimeter connections. No successful authentication followed, "
+                        "so nothing was obtained and no account was taken over. Block the "
+                        "source address at the firewall, confirm the perimeter rule held, and "
+                        "review the failure threshold."),
             },
         },
     )
     assert status == 200
-    assert set(body) == {"scenario", "title", "verdict", "completed", "summary", "questions"}
+    assert set(body) == {"scenario", "title", "verdict", "completed", "summary", "questions",
+                         "scoped", "checked"}
     assert body["verdict"] == "complete"
     assert body["completed"] is True
+    # A whole-scenario submission is unscoped, so it is the only shape that may
+    # report completion.
+    assert body["scoped"] is False
 
 
 def test_reveal_endpoint_still_works(client):
+    """Reveal works for a signed-in student who has checked the scenario.
+
+    Anonymous access was removed by security audit H-1. The response shape is
+    unchanged, so the frontend contract still holds.
+    """
+    register(client, "alice")
+    login(client, "alice")
+    # The policy requires an attempt first: investigate, answer, check, then
+    # consult the model answer.
+    client.post("/api/check", {"scenario": "scenario-1", "answers": {"s1e1": "203.0.113.45"}})
+
     status, body, _h = client.post(
-        "/api/reveal", {"scenario": "scenario-1", "question": "q1"}
+        "/api/reveal", {"scenario": "scenario-1", "question": "s1e1"}
     )
     assert status == 200
     assert set(body) == {
@@ -847,7 +872,7 @@ def test_reveal_endpoint_still_works(client):
 def test_check_endpoint_needs_no_authentication(client):
     # No cookie was ever set in this test, yet grading works.
     status, _body, _h = client.post(
-        "/api/check", {"scenario": "scenario-1", "answers": {"q1": "203.0.113.45"}}
+        "/api/check", {"scenario": "scenario-1", "answers": {"s1e1": "203.0.113.45"}}
     )
     assert status == 200
 
@@ -864,10 +889,14 @@ def test_unknown_api_endpoint_is_still_404(client):
     assert "error" in body
 
 
-def test_training_pages_are_still_served(client):
+def test_training_pages_are_served_to_a_signed_in_student(client):
+    """The student portal is gated; a student with a session still gets the pages."""
+    register(client, "alice")
+    login(client, "alice")
     for path in ("/", "/instructions.html", "/scenarios/scenario-1-brute-force.html"):
-        status, _body, _h = client.get(path)
+        status, _body, headers = client.get(path)
         assert status == 200, path
+        assert "Location" not in headers
 
 
 # ----------------------------------------------------------------- concurrency
@@ -997,7 +1026,7 @@ def test_concurrent_mixed_traffic_does_not_lock_the_database(lab_server):
                 status, _b, _h = register(c, f"{name}-extra")
             else:  # read-only grading, unchanged and still stateless
                 status, _b, _h = c.post(
-                    "/api/check", {"scenario": "scenario-1", "answers": {"q1": "x"}}
+                    "/api/check", {"scenario": "scenario-1", "answers": {"s1e1": "x"}}
                 )
             with lock:
                 outcomes.append(status)
@@ -1076,14 +1105,20 @@ def test_the_session_token_is_never_carried_in_a_url(client):
 
 
 def test_the_answer_key_is_not_readable_through_the_server(client):
+    """A gated path now redirects before the file is touched, so the answer is
+    302 rather than 404. Either way the content is never served - and signing
+    in does not change that, which is the property that matters."""
     for path in (
         "/data/answer-key.json",
         "/answer-key.json",
         "/../data/answer-key.json",
         "/scripts/answer_grader.py",
     ):
-        status, _body, _h = client.get(path)
-        assert status == 404, path
+        assert client.get(path)[0] in (302, 404), path
+        register(client, "alice")
+        login(client, "alice")
+        assert client.get(path)[0] in (302, 404), path
+        client.post("/api/auth/logout")
 
 
 # ------------------------------------------------------------ real database

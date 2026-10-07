@@ -41,6 +41,23 @@ def read(path):
         return handle.read()
 
 
+def key_question_ids(html):
+    """The question ids a page presents, read off its answer controls.
+
+    Read from the controls rather than the question rows, because the controls
+    are what the client submits: a row carrying no control would grade as blank.
+    """
+    return sorted(set(re.findall(r'data-question="(s\d(?:e\d+|f))"', html)))
+
+
+def finding_id(scenario, loaded=None):
+    """The final analyst finding id for a scenario."""
+    loaded = loaded if loaded is not None else G.load_key()
+    wanted = "s%sf" % scenario.split("-")[1]
+    assert wanted in loaded["scenarios"][scenario]["questions"], scenario
+    return wanted
+
+
 @pytest.fixture(scope="module")
 def key():
     return G.load_key()
@@ -56,7 +73,7 @@ def test_key_covers_all_five_scenarios(key):
 def test_key_question_count_matches_the_page(key, scenario):
     """Every data-question on the page must have a key entry, and vice versa."""
     html = read(os.path.join(SCENARIOS_DIR, SCENARIO_FILES[scenario]))
-    page_ids = set(re.findall(r'data-question="(q\d+)"', html))
+    page_ids = set(re.findall(r'data-question="(s\d(?:e\d+|f))"', html))
     key_ids = set(key["scenarios"][scenario]["questions"])
     assert key_ids == page_ids, f"{scenario}: key/page question mismatch"
 
@@ -328,24 +345,67 @@ def test_real_answers_are_not_treated_as_refusals(text):
     assert not G.is_refusal(text), text
 
 
-def test_refusal_does_not_satisfy_a_yes_no_question(key):
-    """'no idea' must not be accepted as the answer 'no'."""
-    result = G.grade("scenario-1", {"q5": "no idea"}, key)
-    assert result["questions"]["q5"]["status"] == "incorrect"
-    assert result["questions"]["q5"]["answered"] is False
+@pytest.mark.parametrize("text", ["no idea", "I do not know", "I don't know",
+                                  "not sure", "idk", "unknown", "unsure",
+                                  "I cannot determine", ""])
+def test_refusal_does_not_satisfy_a_yes_no_question(key, text):
+    """A refusal must never be accepted as the answer "no".
+
+    s2e7 and s5e4 are yes/no questions whose correct answer is the negative.
+    Before Phase 6 the key carried the bare token "no" in an accept list for
+    these, and containment matched it *inside* words such as "not" and "know",
+    so "I do not know" graded correct. Every question is now checked.
+    """
+    for scenario, qid in (("scenario-2", "s2e7"), ("scenario-5", "s5e4")):
+        result = G.grade(scenario, {qid: text}, key)
+        entry = result["questions"][qid]
+        assert entry["status"] == "incorrect", (scenario, qid, text, entry["status"])
+        assert entry["answered"] is False, (scenario, qid, text)
+
+
+@pytest.mark.parametrize("text", [
+    "I do not know the source, but the host is web-01",
+    "unknown user, but the destination port was 443",
+])
+def test_a_refusal_inside_a_real_answer_is_still_an_attempt(key, text):
+    """The guard matches the whole stripped answer, not a fragment of it.
+
+    "I do not know the source, but the host is web-01" contains a refusal phrase
+    and is a genuine attempt. It names no source address, so it must grade as a
+    real wrong answer rather than as "unanswered" - which would let a student
+    blank out a question by writing prose around a refusal.
+    """
+    assert not G.is_refusal(text), text
+    entry = G.grade("scenario-1", {"s1e1": text}, key)["questions"]["s1e1"]
+    assert entry["answered"] is True, text
+    assert entry["status"] == "incorrect", (text, entry["status"])
+
+
+def test_an_answer_naming_the_right_value_is_graded_on_its_merits(key):
+    """The other half of the same rule: a real answer inside a refusal phrase."""
+    text = "unknown user, but the address was 203.0.113.45"
+    assert not G.is_refusal(text), text
+    entry = G.grade("scenario-1", {"s1e1": text}, key)["questions"]["s1e1"]
+    assert entry["status"] == "correct", (text, entry["status"])
 
 
 def test_refusal_everywhere_does_not_inflate_the_score(key):
-    refusals = {"q%d" % i: "no idea" for i in range(1, 10)}
+    refusals = {qid: "no idea" for qid in key["scenarios"]["scenario-1"]["questions"]}
     result = G.grade("scenario-1", refusals, key)
     assert result["verdict"] == "unanswered"
     assert result["summary"]["required_correct"] == 0
 
 
 def test_genuine_negative_answer_still_passes(key):
-    result = G.grade("scenario-1",
-                     {"q5": "No, no logon_success event exists for that source"}, key)
-    assert result["questions"]["q5"]["status"] == "correct"
+    """A real "no" must pass even though the refusal guard exists.
+
+    s2e7 asks whether the two bursts share a source; they do not, so "no" is the
+    right answer and must not be mistaken for a refusal.
+    """
+    result = G.grade("scenario-2", {"s2e7": CORRECT_S2["s2e7"]}, key)
+    entry = result["questions"]["s2e7"]
+    assert entry["status"] == "correct"
+    assert entry["answered"] is True
 
 
 # --------------------------------------------------------- verdict shaping
@@ -388,20 +448,35 @@ def test_scenario_five_completes_when_every_required_answer_is_correct(key):
     assert result["completed"] is True
     assert result["summary"]["required_total"] == 8
     assert result["summary"]["required_correct"] == 8
-    assert result["questions"]["q5"]["status"] == "correct"
+    assert result["questions"]["s5e6"]["status"] == "correct"
+    assert result["questions"]["s5f"]["status"] == "correct"
 
 
-def test_scenario_five_still_requires_all_eight_graded_questions(key):
+def test_scenario_five_requires_every_question_including_the_finding(key):
+    """All eight Scenario 5 questions are required, the finding among them."""
     questions = key["scenarios"]["scenario-5"]["questions"]
-    required = sorted((q for q, v in questions.items() if v.get("required")),
-                      key=lambda x: int(x[1:]))
-    assert required == ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"]
+    required = sorted(q for q, v in questions.items() if v.get("required"))
+    assert required == ["s5e1", "s5e2", "s5e3", "s5e4", "s5e5", "s5e6", "s5e7", "s5f"]
 
     empty = G.grade("scenario-5", {}, key)
     assert empty["summary"]["required_total"] == 8
-    # The two written answers stay self-reviewed and are never counted.
-    assert empty["questions"]["q9"]["status"] == "self_review"
-    assert empty["questions"]["q10"]["status"] == "self_review"
+    assert empty["completed"] is False
+
+
+def test_the_finding_alone_cannot_complete_a_scenario(key):
+    """The Phase 6 completion gate: evidence alone is never enough."""
+    for scenario in SCENARIO_FILES:
+        evidence = [q for q in CORRECT_BY_SCENARIO[scenario] if not q.endswith("f")]
+        finding = finding_id(scenario, key)
+        without = dict(CORRECT_BY_SCENARIO[scenario])
+        without[finding] = ""
+        result = G.grade(scenario, without, key)
+        assert result["questions"][finding]["status"] == "incorrect", scenario
+        assert result["completed"] is False, (
+            "%s completed with %d/%d evidence questions and no finding"
+            % (scenario, result["summary"]["required_correct"],
+               result["summary"]["required_total"]))
+        assert evidence, scenario
 
 
 @pytest.mark.parametrize("answer", [
@@ -411,8 +486,9 @@ def test_scenario_five_still_requires_all_eight_graded_questions(key):
     "different source IPs, so not the same incident",
     "Two unrelated incidents running in parallel",
 ])
-def test_scenario_five_q5_accepts_the_intended_answer(key, answer):
-    assert G.grade("scenario-5", {"q5": answer}, key)["questions"]["q5"]["status"] == "correct"
+def test_scenario_five_separate_activity_accepts_the_intended_answer(key, answer):
+    """s5e4 asks whether the two same-host alerts share an actor. They do not."""
+    assert G.grade("scenario-5", {"s5e4": answer}, key)["questions"]["s5e4"]["status"] == "correct"
 
 
 @pytest.mark.parametrize("answer", [
@@ -422,10 +498,30 @@ def test_scenario_five_q5_accepts_the_intended_answer(key, answer):
     "purple monkey dishwasher",
     "",
 ])
-def test_scenario_five_q5_rejects_an_obviously_wrong_answer(key, answer):
-    result = G.grade("scenario-5", {"q5": answer}, key)
-    assert result["questions"]["q5"]["status"] == "incorrect"
+def test_scenario_five_separate_activity_rejects_an_obviously_wrong_answer(key, answer):
+    result = G.grade("scenario-5", {"s5e4": answer}, key)
+    assert result["questions"]["s5e4"]["status"] == "incorrect"
     assert result["completed"] is False
+
+
+@pytest.mark.parametrize("answer", [
+    "the authentication burst that succeeded - it left a valid session behind",
+    "successful_brute_force, because it is the only alert with an accepted login",
+    "the one that succeeded, which is why it escalated to critical",
+])
+def test_scenario_five_most_severe_accepts_the_intended_answer(key, answer):
+    """s5e6 asks which alert is the most serious outcome, and why."""
+    assert G.grade("scenario-5", {"s5e6": answer}, key)["questions"]["s5e6"]["status"] == "correct"
+
+
+@pytest.mark.parametrize("answer", [
+    "the failed-only burst, because it had more events",
+    "whichever came first",
+    "all of them are equally severe",
+    "",
+])
+def test_scenario_five_most_severe_rejects_an_obviously_wrong_answer(key, answer):
+    assert G.grade("scenario-5", {"s5e6": answer}, key)["questions"]["s5e6"]["status"] == "incorrect"
 
 
 def test_scenario_five_wrong_answers_do_not_complete(key):
@@ -440,9 +536,9 @@ def test_scenario_five_stays_incomplete_while_q5_is_left_blank(key):
     send nothing here and see 7 of 8 - the failure this test is written against.
     """
     answers = dict(CORRECT_S5)
-    answers["q5"] = ""
+    answers["s5e6"] = ""
     result = G.grade("scenario-5", answers, key)
-    assert result["questions"]["q5"]["status"] == "incorrect"
+    assert result["questions"]["s5e6"]["status"] == "incorrect"
     assert result["summary"]["required_correct"] == 7
     assert result["summary"]["required_total"] == 8
     assert result["completed"] is False
@@ -468,8 +564,15 @@ def test_no_required_question_is_permanently_unsatisfiable(key):
 
 
 def test_partially_correct_question_is_partial(key):
-    result = G.grade("scenario-1", {"q1": "the source was 203.0.113.45"}, key)
-    assert result["questions"]["q1"]["status"] == "partial"
+    """Half a two-part question is partial, not wrong.
+
+    s3e6 asks for the parent process *and* what it indicates. Naming only the
+    process earns half the credit.
+    """
+    result = G.grade("scenario-3", {"s3e6": "winlogon.exe"}, key)
+    entry = result["questions"]["s3e6"]
+    assert entry["status"] == "partial"
+    assert [p["ok"] for p in entry["parts"]] == [True, False]
 
 
 def test_incorrect_parts_expose_a_hint_and_never_the_answer(key):
@@ -486,35 +589,57 @@ def test_grade_response_has_no_solution_field(key):
 
 
 def test_reveal_returns_the_solution_and_marks_it_assisted(key):
-    data = G.reveal("scenario-1", "q1", key)
+    data = G.reveal("scenario-1", "s1e1", key)
     assert data["assisted"] is True
     assert "203.0.113.45" in data["solution"]
 
 
+def test_the_finding_can_be_revealed_and_stays_safe(key):
+    """The finding is revealable, and its rubric travels with the answer."""
+    data = G.reveal("scenario-1", "s1f", key)
+    assert data["assisted"] is True
+    assert data["solution"]
+    assert data["review_prompt"]
+
+
 def test_reveal_requires_the_flag_when_grading(key):
     without = G.grade("scenario-1", CORRECT_S1, key, reveal_solution=False)
-    assert "solution" not in without["questions"]["q1"]
+    for qid, entry in without["questions"].items():
+        assert "solution" not in entry, qid
     with_flag = G.grade("scenario-1", CORRECT_S1, key, reveal_solution=True)
-    assert with_flag["questions"]["q1"]["assisted"] is True
+    for qid, entry in with_flag["questions"].items():
+        assert entry["assisted"] is True, qid
+        assert entry["solution"], qid
 
 
 def test_unknown_scenario_and_question_are_rejected(key):
     with pytest.raises(G.GradingError):
         G.grade("scenario-99", {}, key)
     with pytest.raises(G.GradingError):
-        G.reveal("scenario-1", "q99", key)
+        G.reveal("scenario-1", "s1e99", key)
 
 
-def test_self_review_questions_are_reported_separately(key):
-    result = G.grade("scenario-1", {}, key)
-    assert result["questions"]["q8"]["status"] == "self_review"
-    assert result["questions"]["q8"]["required"] is False
-    assert result["summary"]["self_review"] >= 1
+def test_the_finding_is_required_and_carries_its_rubric(key):
+    """The finding replaced the unchecked self-review question.
+
+    Under the worksheet model the written answers had no parts, so they graded
+    as `self_review`, could never be correct, and were excluded from
+    required_total - which let a scenario be completed without writing a
+    finding at all. The finding is now graded against its rubric and is
+    required.
+    """
+    for scenario in SCENARIO_FILES:
+        question = key["scenarios"][scenario]["questions"][finding_id(scenario, key)]
+        assert question.get("required") is True, scenario
+        assert question.get("parts"), f"{scenario}: the finding needs rubric parts to be gradeable"
+        assert question.get("review_prompt"), scenario
+        empty = G.grade(scenario, {}, key)
+        assert empty["questions"][question and finding_id(scenario, key)]["required"] is True, scenario
 
 
 def test_oversized_answer_is_truncated_not_rejected(key):
-    result = G.grade("scenario-1", {"q1": "x" * (G.MAX_ANSWER_CHARS + 500)}, key)
-    assert result["questions"]["q1"]["answered"] is True
+    result = G.grade("scenario-1", {"s1e1": "x" * (G.MAX_ANSWER_CHARS + 500)}, key)
+    assert result["questions"]["s1e1"]["answered"] is True
 
 
 # ------------------------------------------------------------- HTTP surface
@@ -569,11 +694,28 @@ def test_api_check_hints_do_not_leak_answers(server, key):
 
 
 def test_api_reveal_requires_an_explicit_question(server, key):
-    status, body = post(server, "/api/reveal",
-                        {"scenario": "scenario-1", "question": "q1"})
-    assert status == 200
-    assert body["assisted"] is True
-    assert "203.0.113.45" in body["solution"]
+    """Reveal is no longer anonymous (security audit H-1).
+
+    This file tests the grader, not authentication, and has no login helper, so
+    it asserts the new refusal instead: an anonymous caller is turned away
+    before the question id is ever validated. The authenticated path, including
+    "an explicit question is required", is covered by
+    tests/test_reveal_policy.py.
+    """
+    request = urllib.request.Request(
+        server + "/api/reveal",
+        data=json.dumps({"scenario": "scenario-1", "question": "s1e1"}).encode("utf-8"),
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            assert response.status != 200, "anonymous reveal must not succeed"
+            assert "solution" not in payload
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 401
+        body = json.loads(exc.read().decode("utf-8"))
+        assert "solution" not in body
 
 
 def test_api_rejects_bad_requests_without_a_traceback(server):
@@ -618,8 +760,18 @@ def test_pages_still_serve_after_the_api_was_added(server):
 
 @pytest.mark.parametrize("scenario", sorted(SCENARIO_FILES))
 def test_page_has_the_checking_controls(scenario):
+    """Each question checks itself; there is no submit-everything button.
+
+    The retirement of the single "Check answers" button is the point of the
+    Phase 6 loop, so it is asserted rather than merely untested: a page that
+    still submits everything would pass silently otherwise.
+    """
     html = read(os.path.join(SCENARIOS_DIR, SCENARIO_FILES[scenario]))
-    assert 'id="check-answers"' in html, scenario
+    ids = set(key_question_ids(html))
+    assert ids, scenario
+    for qid in ids:
+        assert f'data-check="{qid}"' in html, f"{scenario}: {qid} has no Check answer button"
+    assert 'id="check-answers"' not in html, f"{scenario}: the submit-all button is still present"
     assert 'id="check-result"' in html, scenario
     assert "lab-check.js" in html, scenario
     assert 'id="check-gate-note"' in html, scenario
@@ -628,12 +780,15 @@ def test_page_has_the_checking_controls(scenario):
 @pytest.mark.parametrize("scenario", sorted(SCENARIO_FILES))
 def test_every_question_row_is_tagged_with_feedback_hooks(scenario):
     html = read(os.path.join(SCENARIOS_DIR, SCENARIO_FILES[scenario]))
-    rows = set(re.findall(r'data-question-row="(q\d+)"', html))
-    answers = set(re.findall(r'data-question="(q\d+)"', html))
-    assert rows == answers, scenario
-    for qid in sorted(answers):
-        assert f'class="answer-status" ' in html
+    rows = set(re.findall(r'data-question-row="(s\d(?:e\d+|f))"', html))
+    answers = set(key_question_ids(html))
+    assert rows == answers, f"{scenario}: rows {rows} vs controls {answers}"
+    for qid in sorted(rows):
+        assert 'data-state-chip' in html, f"{scenario}/{qid} has no state chip"
+        assert 'data-feedback' in html, f"{scenario}/{qid} has no feedback region"
         assert f'data-reveal="{qid}"' in html, f"{scenario}/{qid} missing reveal"
+        assert f'data-hint="{qid}"' in html, f"{scenario}/{qid} missing hint"
+        assert f'data-check="{qid}"' in html, f"{scenario}/{qid} missing Check answer"
 
 
 @pytest.mark.parametrize("scenario", sorted(SCENARIO_FILES))
@@ -644,12 +799,19 @@ def test_mark_complete_starts_disabled(scenario):
 
 
 @pytest.mark.parametrize("scenario", sorted(SCENARIO_FILES))
-def test_self_review_checkboxes_match_the_key(scenario, key):
+def test_every_question_on_the_page_is_required_in_the_key(scenario, key):
+    """No unchecked questions remain.
+
+    Phase 6 retired the self-review checkbox: the graded finding replaced it, so
+    nothing on the page may sit outside required_total any more.
+    """
     html = read(os.path.join(SCENARIOS_DIR, SCENARIO_FILES[scenario]))
-    on_page = set(re.findall(r'data-self-review="(q\d+)"', html))
-    in_key = {q for q, v in key["scenarios"][scenario]["questions"].items()
-              if not v.get("required")}
-    assert on_page == in_key, scenario
+    assert 'data-self-review' not in html, scenario
+    assert "analyst self-review" not in html, scenario
+    not_required = {q for q, v in key["scenarios"][scenario]["questions"].items()
+                    if not v.get("required")}
+    assert not_required == set(), f"{scenario}: {not_required} are not required"
+    assert set(key["scenarios"][scenario]["questions"]) == set(key_question_ids(html)), scenario
 
 
 def test_pages_do_not_contain_answer_key_values():
@@ -769,57 +931,116 @@ def test_instructions_page_does_not_give_away_the_scenario_one_window():
 
 
 # ------------------------------------------------------------- answer data
+#
+# Phase 6 ids: s<N>e<M> for evidence objectives, s<N>f for the final finding.
+# Every question in a scenario is graded, including the finding, so a complete
+# submission now carries one answer per question rather than leaving the written
+# answers blank.
 
 CORRECT_S1 = {
-    "q1": "Attacker was 203.0.113.45 and the target was WEB-01",
-    "q2": "root 5 times and admin 5 times",
-    "q3": "10 failed logons spanning 132 seconds (2 min 12 s)",
-    "q4": "rule brute_force; min_failures: 5 and time_window_minutes: 5",
-    "q5": "No, there is no logon_success for that source IP",
-    "q6": "Three events on fw-01: 203.0.113.45 -> 10.0.0.10 port 22",
-    "q7": "svc_backup from 10.0.0.30 had 4 failures, below the threshold of 5",
+    "s1e1": "203.0.113.45",
+    "s1e2": "web-01",
+    "s1e3": "10 failed logons",
+    "s1e4": "132 seconds (2 min 12 s)",
+    "s1e5": "2 accounts: root and admin",
+    "s1e6": "22 (SSH)",
+    "s1e7": "3 blocked connections",
+    "s1e8": "svc_backup had 4 failures, which is below min_failures of 5",
+    "s1f": ("An external host ran an automated credential attack against SSH on web-01: "
+            "source 203.0.113.45, ten failed authentications spread across multiple "
+            "account names, all inside 132 seconds, with three blocked perimeter "
+            "connections. No successful authentication followed, so nothing was obtained "
+            "and no account was taken over. Block the source address at the firewall, "
+            "confirm the perimeter rule held, and review the failure threshold."),
+}
+
+CORRECT_S2 = {
+    "s2e1": "alice",
+    "s2e2": "203.0.113.66",
+    "s2e3": "5 failed authentications",
+    "s2e4": "129 seconds (2 min 9 s)",
+    "s2e5": ("Yes, the success fell inside the configured window, so the severity "
+             "escalated to critical"),
+    "s2e6": "the raw log line reports the authentication was accepted",
+    "s2e7": "No, different source addresses, so they are separate activity",
+    "s2f": ("alice on web-01 saw five failed SSH authentications from 203.0.113.66, and "
+            "the raw log line then records an accepted password. Access was achieved and "
+            "a valid session established, so an external party now holds access as alice. "
+            "Block 203.0.113.66 at the firewall, rotate the credential and revoke sessions, "
+            "and preserve the host for forensics."),
 }
 
 WRONG_S1 = {
-    "q1": "192.168.1.10 hit db-01",
-    "q2": "only the admin account, 3 times",
-    "q3": "7 failures over an hour",
-    "q4": "a port scan rule with threshold 50",
-    "q5": "Yes, it succeeded immediately",
-    "q6": "there are no firewall records",
-    "q7": "the guest account failed 9 times",
+    "s1e1": "192.168.1.10",
+    "s1e2": "db-01",
+    "s1e3": "7 failures",
+    "s1e4": "an hour",
+    "s1e5": "5 accounts",
+    "s1e6": "443",
+    "s1e7": "9 connections",
+    "s1e8": "the rule was disabled for that host",
+    "s1f": "Something bad happened to a web server. I would tell the team.",
 }
 
-# Scenario 5, the capstone. q5 is answered in prose like a written finding, so it
-# is phrased the way a student would actually phrase it rather than as a token.
+# Scenario 5, the capstone.
 CORRECT_S5 = {
-    "q1": "4 alerts: 3 high, 1 critical, and 2 of them from suspicious_process_post_login",
-    "q2": ("1) brute_force 203.0.113.45  2) successful_brute_force 203.0.113.66  "
-           "3) suspicious_process_post_login 198.51.100.25  "
-           "4) suspicious_process_post_login 198.51.100.77"),
-    "q3": "4 distinct source IPs: 203.0.113.45, 203.0.113.66, 198.51.100.25, 198.51.100.77",
-    "q4": "the attack ran for 146 seconds end to end",
-    "q5": ("They are separate incidents: different source IPs, rules and accounts, "
-           "and they ran in parallel"),
-    "q6": "successful_brute_force, source 203.0.113.66, account alice - the attacker got in",
-    "q7": "fw-01 holds the firewall records, blocked 10.0.0.10 port 22, 3 connections",
-    "q8": ("svc_backup had 4 failures, below min_failures; app-02 ran powershell "
-           "30 minutes later, outside the window"),
-    "q9": "Routine logons and sudo by the service accounts, identical every day",
-    "q10": ("Confirmed compromise of one account and an interactive shell elsewhere. "
-            "Disable the accounts, rotate keys, block the source ranges, review all "
-            "four hosts, and add rate limiting."),
+    "s5e1": ("the failed-only authentication burst -> the authentication burst that "
+             "succeeded -> the first post-authentication process -> the second "
+             "post-authentication process"),
+    "s5e2": "4 distinct source IPs",
+    "s5e3": ("the failed-only authentication burst -> the authentication burst that "
+             "succeeded"),
+    "s5e4": ("No: different source addresses, so they are separate activity and must be "
+             "tracked independently"),
+    "s5e5": "the authentication burst that succeeded",
+    "s5e6": ("The authentication burst that succeeded is most serious: its evidence "
+             "contains an accepted authentication and a valid session, so it is achieved "
+             "access rather than an attempt."),
+    "s5e7": ("app-02 ran powershell 30 minutes after the logon, outside the rule's time "
+             "window, so no alert fired"),
+    "s5f": ("Timeline: first the failed-only authentication burst, second the burst that "
+            "succeeded, then the two post-authentication processes. The confirmed "
+            "compromise is the successful_brute_force alert - a valid session for alice on "
+            "web-01. The two alerts on that host came from different sources so they are "
+            "parallel and separate, and the powershell activity stayed quiet because it ran "
+            "outside the rule's time window. Actions: block the confirmed source, contain "
+            "the accessed account and host, and review the detection gap."),
+}
+
+# A correct answer set per scenario, for the tests that need "everything right"
+# without caring which scenario.
+CORRECT_BY_SCENARIO = {
+    "scenario-1": CORRECT_S1,
+    "scenario-2": CORRECT_S2,
+    "scenario-5": CORRECT_S5,
 }
 
 WRONG_S5 = {
-    "q1": "9 alerts, all of them low severity",
-    "q2": "one single alert, a port scan",
-    "q3": "just one source IP",
-    "q4": "the whole thing took about an hour",
-    "q5": "yes, it is one continuous incident",
-    "q6": "brute_force, from an unknown address",
-    "q7": "there are no firewall records at all",
-    "q8": "both were blocked by the firewall",
-    "q9": "I have no idea, maybe it is an attack",
-    "q10": "nothing to report",
+    "s5e1": ("the first post-authentication process -> the failed-only authentication burst "
+             "-> the authentication burst that succeeded -> the second post-authentication "
+             "process"),
+    "s5e2": "231 source IPs",
+    "s5e3": ("the first post-authentication process -> the second post-authentication "
+             "process"),
+    "s5e4": "Yes, the same actor ran both alerts on that host",
+    "s5e5": "the failed-only authentication burst",
+    "s5e6": "The failed-only burst is most serious because it had more events",
+    "s5e7": "A scheduled task ran nightly on its own schedule",
+    "s5f": "Four alerts happened. Investigate them.",
 }
+
+
+def _answers_for_the_rest():
+    """Scenarios 3 and 4 correct answers, read from the key's own solutions."""
+    loaded = G.load_key()
+    out = {}
+    for scenario in ("scenario-3", "scenario-4"):
+        out[scenario] = {
+            qid: question["solution"]
+            for qid, question in loaded["scenarios"][scenario]["questions"].items()
+        }
+    return out
+
+
+CORRECT_BY_SCENARIO.update(_answers_for_the_rest())
+del _answers_for_the_rest

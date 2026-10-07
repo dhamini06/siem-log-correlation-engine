@@ -113,11 +113,19 @@ def test_validate_event_payload_reports_errors():
 
 
 def test_document_id_is_deterministic_and_unique():
-    first = build_event()
-    second = build_event()
+    # The timestamp is pinned deliberately. `build_event()` defaults to
+    # `utc_now()`, and the document id hashes a millisecond-truncated
+    # timestamp, so two consecutive calls usually land in the same millisecond
+    # and only sometimes do not. Measured at 8 failures in 2,000 consecutive
+    # pairs - a 0.4% coin flip that has nothing to do with the thing under test.
+    # What is being asserted is that the id is a pure function of the event's
+    # content, so the content must be held still.
+    stamp = utc_now().replace(microsecond=0)
+    first = build_event(timestamp=stamp)
+    second = build_event(timestamp=stamp)
     assert compute_event_document_id(first) == compute_event_document_id(second)
 
-    other = build_event(src_ip="10.0.0.9")
+    other = build_event(timestamp=stamp, src_ip="10.0.0.9")
     assert compute_event_document_id(first) != compute_event_document_id(other)
 
 

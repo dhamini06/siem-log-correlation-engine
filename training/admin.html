@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Instructor dashboard | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="admin">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Instructor Dashboard</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Lab home</a>
+      <a href="instructions.html">Investigation Method</a>
+      <span class="nav-identity" data-auth-identity hidden>Signed in</span>
+      <a href="#" class="nav-signout" data-auth-signout hidden>Sign out</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Instructor area</span>
+        <h1>Lab dashboard</h1>
+        <p class="auth-sub">Class overview for the SIEM training lab. Students never see this
+        page, and these figures are not stored in the browser &mdash; each load asks the server.</p>
+      </div>
+
+      <!-- Counts only. No identifier, no secret, nothing per-student. -->
+      <div class="stat-row" role="group" aria-label="Class totals">
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-students">-</span>
+          <span class="stat-label">Total students</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-active">-</span>
+          <span class="stat-label">Active accounts</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-started">-</span>
+          <span class="stat-label">Started a scenario</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-checks">-</span>
+          <span class="stat-label">Submissions</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-scenarios-started">-</span>
+          <span class="stat-label">Scenarios started</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-scenarios-completed">-</span>
+          <span class="stat-label">Scenarios completed</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-questions">-</span>
+          <span class="stat-label">Questions attempted</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-correct">-</span>
+          <span class="stat-label">Correct answers</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-assisted">-</span>
+          <span class="stat-label">Assisted answers</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-live">-</span>
+          <span class="stat-label">Live sessions now</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-value" id="stat-admins">-</span>
+          <span class="stat-label">Instructor accounts</span>
+        </div>
+      </div>
+
+      <p class="hint-note" id="admin-status" role="status" aria-live="polite">Loading...</p>
+
+      <h2 class="dash-heading">Scenario activity</h2>
+      <p class="dash-note">Counted from the progress each student has recorded
+      against that scenario. A scenario nobody has opened still appears, at zero.</p>
+      <div class="table-wrap">
+        <table class="dash-table" id="scenario-table">
+          <caption class="sr-only">Students, submissions, questions and completions per scenario</caption>
+          <thead>
+            <tr>
+              <th scope="col">Scenario</th>
+              <th scope="col">Students</th>
+              <th scope="col">Submissions</th>
+              <th scope="col">Questions</th>
+              <th scope="col">Completed</th>
+              <th scope="col">Correct</th>
+              <th scope="col">Assisted</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2 class="dash-heading">Students</h2>
+      <p class="dash-note">One row per student account. Usernames and activity counters only:
+      no password material, no session tokens and no answer text appear here or behind it.</p>
+      <div class="table-wrap">
+        <table class="dash-table" id="student-table">
+          <caption class="sr-only">Per-student account and activity</caption>
+          <thead>
+            <tr>
+              <th scope="col">Username</th>
+              <th scope="col">Created</th>
+              <th scope="col">Scenarios started</th>
+              <th scope="col">Scenarios completed</th>
+              <th scope="col">Submissions</th>
+              <th scope="col">Questions</th>
+              <th scope="col">Correct</th>
+              <th scope="col">Assisted</th>
+              <th scope="col">Last activity</th>
+              <th scope="col">Active</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <p class="dash-note">Progress figures fill in as the lab records them. An account that has
+      only signed in shows zeroes, which is what the stored data actually says.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="mb0">BlueCloud Softech Solutions &middot; Lab #07 &middot; Instructor area</p>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

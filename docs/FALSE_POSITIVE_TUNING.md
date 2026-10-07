@@ -9,6 +9,8 @@
    python -m src.main correlate --run-once
    python -m src.main stats
    ```
+   The `ingest` line needs `.\logs\generated` to hold one dataset. If it also
+   holds `enterprise-14d_*` it is refused — see `docs/DATASET.md` §2.1.
 2. **Classify each alert** as true positive or false positive. Record the reason in the
    `false_positive_feedback` field of the alert document (`unreviewed` / `true_positive` /
    `false_positive`). In Kibana, filter on that field to review only the questionable ones.
@@ -75,3 +77,7 @@ Remove-Item .\data\dedup-cache.json -ErrorAction SilentlyContinue
 
 Expected after the full replay above: `brute_force=1`, `successful_brute_force=1`,
 `suspicious_process_post_login=2`, and zero alerts from `normal_day` and `false_positive_mix`.
+
+This replay assumes `.\logs\generated` holds the demonstration fixtures alone. If
+it also holds `enterprise-14d_*`, the `ingest` line is refused rather than
+indexing both — see `docs/DATASET.md` §2.1.

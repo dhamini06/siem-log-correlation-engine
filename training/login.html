@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
+<meta name="description" content="Sign in to the BlueCloud Softech Solutions cybersecurity training lab to continue your SIEM investigation.">
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="login">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="instructions.html">Investigation Method</a>
+      <a href="register.html">Create account</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="section">
+    <div class="wrap">
+      <div class="auth-layout">
+
+        <div class="auth-card">
+          <div class="section-head">
+            <span class="kicker">Student account</span>
+            <h1 class="auth-title">Sign in</h1>
+            <p class="auth-sub">Continue your SIEM investigation. Your answers stay in this
+            browser; your account just identifies your work.</p>
+          </div>
+
+          <!-- No action attribute and no method: without JavaScript the form
+               does nothing rather than posting a password to a page URL. -->
+          <form id="auth-form" data-mode="login" class="auth-form" novalidate>
+            <div class="field">
+              <label for="username">Username</label>
+              <input type="text" id="username" name="username" autocomplete="username"
+                     autocapitalize="none" spellcheck="false" required
+                     aria-describedby="auth-message">
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <input type="password" id="password" name="password"
+                     autocomplete="current-password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+
+            <!-- role=status so assistive tech announces the result without
+                 stealing focus. -->
+            <p id="auth-message" class="form-message" role="status" aria-live="polite" hidden></p>
+          </form>
+
+          <p class="auth-alt">No account yet? <a href="register.html">Create a student account</a>.</p>
+        </div>
+
+        <aside class="auth-aside">
+          <h2>How your account is used</h2>
+          <ul class="tick-list">
+            <li>Identifies the work you do in this lab</li>
+            <li>Your sign-in is held in a secure cookie, not in the page</li>
+            <li>Repeated sign-in attempts are briefly slowed down</li>
+            <li>Signing out ends the session on the server immediately</li>
+          </ul>
+          <p class="auth-note">Your password is never stored, never echoed back to you, and never
+          written into the page. The lab server keeps only a one-way hash of it.</p>
+        </aside>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="mb0">BlueCloud Softech Solutions &middot; Lab #07 &middot; SIEM Log Correlation Engine</p>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/auth-form.js"></script>
+<script>
+  /* Carry the username across from registration so a student does not retype
+     it. A username is an identifier, not a credential. */
+  document.addEventListener("DOMContentLoaded", function () {
+    var field = document.getElementById("username");
+    var preset = new URLSearchParams(window.location.search).get("u");
+    if (field && preset) { field.value = preset; }
+  });
+</script>
+</body>
+</html>

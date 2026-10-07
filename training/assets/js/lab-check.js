@@ -1,87 +1,40 @@
-/* ==========================================================================
-   BlueCloud Softech Solutions - SIEM Lab
-   Student answer checking.
-
-   Answers are graded by the lab server (POST /api/check). The answer key is
-   never present in this file, in the page, or in localStorage: the server
-   returns only a verdict per question plus a hint for anything unmatched, and
-   the model solution only when the student explicitly asks for it.
-
-   The script degrades safely. If the platform is served by a plain static
-   file server instead of scripts/serve_training.py, checking is unavailable
-   and the page says so instead of failing silently.
-   ========================================================================== */
+/* Student answer checking - investigation flow.
+ *
+ * The worksheet model was: read every question, fill every textarea, press one
+ * button, receive a verdict for all of them. That made the page feel like a form
+ * rather than an investigation, and it had a second effect worth naming: every
+ * check rewrote the recorded verdict for *every* question, so a student who had
+ * answered two questions well could not keep those two correct while working on
+ * the third.
+ *
+ * This version checks one objective at a time. Each question carries its own
+ * Check answer button; the request names the question, so the server grades that
+ * question alone and the response carries no verdict for work the student has
+ * not done. Completion needs every evidence question *and* the final finding.
+ *
+ * Answers are always submitted as the same flat map of question id -> string.
+ * A number input, a select, a yes/no choice and an ordered list are all
+ * flattened to text here, so the check request format and the grader's
+ * containment matching are unchanged. An ordered list is joined with " -> ".
+ *
+ * The answer key is never present in this file, in the page, or in localStorage.
+ * localStorage holds the student's own unsent draft text only, so a refresh
+ * does not lose typing; server-side progress is authoritative for verdicts and
+ * is what the summary and the completion gate read.
+ */
 (function () {
   "use strict";
 
   var API_CHECK = "/api/check";
   var API_REVEAL = "/api/reveal";
-  var REQUEST_TIMEOUT = 15000;
+  var API_STUDENT = "/api/student";
+  var DRAFT_KEY = "bluecloud-siem-lab-v1";
+  var ORDER_SEP = " -> ";
 
-  var STATUS_TEXT = {
-    correct: "Correct",
-    partial: "Partially correct",
-    incorrect: "Needs work",
-    self_review: "Your call"
-  };
+  /* ------------------------------------------------------------- utilities */
 
-  /* ---------------------------------------------------------------- utils */
   function scenarioId() {
-    return document.body.getAttribute("data-scenario");
-  }
-
-  function store() {
-    try {
-      return JSON.parse(window.localStorage.getItem("bluecloud-siem-lab-v1") || "{}") || {};
-    } catch (err) {
-      return {};
-    }
-  }
-
-  function save(state) {
-    try {
-      window.localStorage.setItem("bluecloud-siem-lab-v1", JSON.stringify(state));
-    } catch (err) {
-      /* storage disabled: grading still works, it just will not persist */
-    }
-  }
-
-  function collectAnswers() {
-    var answers = {};
-    var boxes = document.querySelectorAll("textarea[data-question]");
-    Array.prototype.forEach.call(boxes, function (box) {
-      answers[box.getAttribute("data-question")] = box.value;
-    });
-    return answers;
-  }
-
-  function postJSON(url, payload) {
-    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var timer = window.setTimeout(function () {
-      if (controller) controller.abort();
-    }, REQUEST_TIMEOUT);
-
-    return window.fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller ? controller.signal : undefined
-    }).then(function (response) {
-      window.clearTimeout(timer);
-      return response.json().then(function (body) {
-        if (!response.ok) {
-          throw new Error((body && body.error) || "HTTP " + response.status);
-        }
-        return body;
-      });
-    }, function (err) {
-      window.clearTimeout(timer);
-      throw err;
-    });
-  }
-
-  function clear(node) {
-    while (node && node.firstChild) node.removeChild(node.firstChild);
+    return document.body.getAttribute("data-scenario") || "";
   }
 
   function el(tag, className, text) {
@@ -91,339 +44,526 @@
     return node;
   }
 
-  /* ------------------------------------------------------------- rendering */
+  function clear(node) {
+    while (node && node.firstChild) node.removeChild(node.firstChild);
+  }
+
   function questionRow(id) {
-    return document.querySelector('.qlist li[data-question-row="' + id + '"]');
+    return document.querySelector('[data-question-row="' + id + '"]');
   }
 
-  function paintQuestion(id, result) {
-    var row = questionRow(id);
-    if (!row) return;
+  function allRows() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll("[data-question-row]"));
+  }
 
-    var status = result.status;
-    row.classList.remove("is-correct", "is-partial", "is-incorrect", "is-selfreview");
-    if (status === "correct") row.classList.add("is-correct");
-    else if (status === "partial") row.classList.add("is-partial");
-    else if (status === "self_review") row.classList.add("is-selfreview");
-    else row.classList.add("is-incorrect");
+  function isFinding(row) {
+    return /f$/.test(row.getAttribute("data-question-row") || "");
+  }
 
-    var badge = row.querySelector(".answer-status");
-    if (badge) {
-      badge.textContent = STATUS_TEXT[status] || status;
-      badge.hidden = false;
+  /* ---------------------------------------------------------------- drafts */
+  /* Draft only. Never a verdict, never a source of truth for completion. */
+
+  function readDrafts() {
+    try {
+      return JSON.parse(window.localStorage.getItem(DRAFT_KEY) || "{}") || {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function writeDrafts(state) {
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
+    } catch (err) {
+      /* storage disabled: grading still works, drafts just do not persist */
+    }
+  }
+
+  function saveDraft(row, value) {
+    var state = readDrafts();
+    var key = scenarioId() + ":" + row.getAttribute("data-question-row");
+    if (value) { state[key] = value; } else { delete state[key]; }
+    writeDrafts(state);
+  }
+
+  function loadDraft(row) {
+    var state = readDrafts();
+    var key = scenarioId() + ":" + row.getAttribute("data-question-row");
+    return state[key] || "";
+  }
+
+  /* ------------------------------------------------------- reading answers */
+
+  /* The one place that turns whatever control a question has into a string. */
+  function readAnswer(row) {
+    var control = row.getAttribute("data-control");
+
+    if (control === "ordering") {
+      var list = row.querySelector(".ordered-list");
+      if (!list) return "";
+      var items = Array.prototype.map.call(
+        list.querySelectorAll(".ord-label"), function (n) {
+          return (n.textContent || "").trim();
+        });
+      return items.join(ORDER_SEP);
     }
 
-    var feedback = row.querySelector(".answer-feedback");
-    if (!feedback) return;
-    clear(feedback);
+    if (control === "boolean") {
+      var chosen = row.querySelector(".btn-choice[aria-pressed='true']");
+      var why = row.querySelector(".answer-why");
+      var lead = chosen ? (chosen.getAttribute("data-choice") || "") : "";
+      var reason = why ? (why.value || "").trim() : "";
+      if (!lead && !reason) return "";
+      return reason ? lead + " " + reason : lead;
+    }
 
-    (result.parts || []).forEach(function (part) {
-      var line = el("li", part.ok ? "fb-ok" : "fb-no");
-      line.appendChild(el("span", "fb-mark", part.ok ? "✓" : "✗"));
-      line.appendChild(el("span", "fb-label", part.label));
-      if (!part.ok && part.hint) {
-        line.appendChild(el("span", "fb-hint", part.hint));
-      }
-      feedback.appendChild(line);
+    var field = row.querySelector("[data-question]");
+    return field ? (field.value || "").trim() : "";
+  }
+
+  function collectAnswers() {
+    var out = {};
+    allRows().forEach(function (row) {
+      var id = row.getAttribute("data-question-row");
+      var value = readAnswer(row);
+      if (value) out[id] = value;
     });
+    return out;
+  }
 
-    if (status === "self_review" && result.review_prompt) {
-      var self = el("li", "fb-self");
-      self.appendChild(el("span", "fb-mark", "✎"));
-      self.appendChild(el("span", "fb-label", result.review_prompt));
-      feedback.appendChild(self);
+  function paintOrdered(row, value) {
+    var list = row.querySelector(".ordered-list");
+    if (!list) return;
+    if (!value) return;
+    var wanted = String(value).split(ORDER_SEP).map(function (s) { return s.trim(); })
+      .filter(Boolean);
+    var items = Array.prototype.slice.call(list.querySelectorAll("li"));
+    items.sort(function (a, b) {
+      var ai = wanted.indexOf((a.querySelector(".ord-label").textContent || "").trim());
+      var bi = wanted.indexOf((b.querySelector(".ord-label").textContent || "").trim());
+      if (ai === bi) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    items.forEach(function (item) { list.appendChild(item); });
+  }
 
-      var check = row.querySelector(".self-review-check");
-      if (check) {
-        check.hidden = false;
-        if (result.reviewed) check.checked = true;
+  /* -------------------------------------------------------------- controls */
+
+  function wireOrdering(row) {
+    var list = row.querySelector(".ordered-list");
+    if (!list) return;
+    list.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest(".ord-move") : null;
+      if (!button) return;
+      var item = button.parentNode;
+      if (button.getAttribute("data-dir") === "up" && item.previousElementSibling) {
+        list.insertBefore(item, item.previousElementSibling);
+      } else if (button.getAttribute("data-dir") === "down" && item.nextElementSibling) {
+        list.insertBefore(item.nextElementSibling, item);
       }
+      var hidden = row.querySelector(".ord-value");
+      if (hidden) hidden.value = readAnswer(row);
+    });
+  }
+
+  function wireBoolean(row) {
+    var group = row.querySelector(".answer-choice");
+    if (!group) return;
+    group.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest(".btn-choice") : null;
+      if (!button) return;
+      var was = button.getAttribute("aria-pressed") === "true";
+      Array.prototype.forEach.call(group.querySelectorAll(".btn-choice"), function (b) {
+        b.setAttribute("aria-pressed", "false");
+      });
+      button.setAttribute("aria-pressed", was ? "false" : "true");
+      saveDraft(row, readAnswer(row));
+    });
+  }
+
+  function wireDraft(row) {
+    var field = row.querySelector("[data-question]:not(.ord-value)");
+    if (!field) return;
+    field.addEventListener("input", function () {
+      saveDraft(row, readAnswer(row));
+      if (row.getAttribute("data-state") === "needs_work") {
+        setState(row, "not_started");
+      }
+    });
+  }
+
+  /* ----------------------------------------------------------------- state */
+
+  var STATE_TEXT = {
+    not_started: "Not started",
+    needs_work: "Needs work",
+    correct: "Correct",
+    assisted: "Assisted"
+  };
+
+  function setState(row, state) {
+    row.setAttribute("data-state", state);
+    var chip = row.querySelector("[data-state-chip]");
+    if (chip) {
+      chip.textContent = isFinding(row) && state === "not_started"
+        ? "Not submitted"
+        : (STATE_TEXT[state] || state);
     }
   }
 
-  function paintSummary(result) {
+  /* -------------------------------------------------------------- progress */
+
+  /* "Done" means the question was answered correctly, whether or not the student
+   * looked at the model answer first. Assistance is recorded separately and is
+   * not a reason to withhold completion - a student who was shown the answer and
+   * then wrote a correct one has finished the question. */
+  function isDone(state) {
+    return state === "correct" || state === "assisted";
+  }
+
+  function computeProgress() {
+    var evidence = { total: 0, correct: 0, assisted: 0 };
+    var finding = { row: null, state: "not_started" };
+    allRows().forEach(function (row) {
+      var state = row.getAttribute("data-state") || "not_started";
+      if (isFinding(row)) {
+        finding.row = row;
+        finding.state = state;
+      } else {
+        evidence.total += 1;
+        if (state === "correct") evidence.correct += 1;
+        else if (state === "assisted") evidence.assisted += 1;
+      }
+    });
+    return { evidence: evidence, finding: finding };
+  }
+
+  function paintSummary() {
     var box = document.getElementById("check-result");
+    if (!box) return;
+    var p = computeProgress();
+    var findingDone = p.finding.state === "correct";
+
+    clear(box);
+    box.hidden = false;
+    box.className = "callout " + (p.evidence.correct === p.evidence.total && findingDone
+                                   ? "callout-ok" : "callout-info");
+
+    var done = p.evidence.correct + p.evidence.assisted;
+    var allEvidenceDone = done === p.evidence.total;
+
+    box.appendChild(el("span", "callout-title", "Your investigation"));
+    box.appendChild(el("p", "mb0",
+      "Evidence " + done + "/" + p.evidence.total + " answered correctly" +
+      (p.evidence.assisted
+        ? " (" + p.evidence.assisted + " with help)" : "") +
+      ". Finding: " +
+      (findingDone ? "complete"
+        : p.finding.state === "needs_work" ? "needs work" : "not submitted") + "."));
+
+    if (allEvidenceDone && !findingDone) {
+      box.appendChild(el("p", "mb0",
+        "Every evidence question is answered correctly. The scenario is finished " +
+        "when you also submit the final analyst finding below."));
+    }
+    setCompletionGate(allEvidenceDone && findingDone);
+  }
+
+  function setCompletionGate(completed) {
+    var button = document.getElementById("mark-done");
+    if (button) button.disabled = !completed;
+    var note = document.getElementById("check-gate-note");
+    if (note) {
+      note.hidden = Boolean(completed);
+    }
+    var banner = document.getElementById("done-banner");
+    if (banner && completed) banner.style.display = "block";
+    if (typeof window.refreshLabProgress === "function") window.refreshLabProgress();
+  }
+
+  /* --------------------------------------------------------------- feedback */
+
+  function showFeedback(row, kind, title, lines) {
+    var box = row.querySelector("[data-feedback]");
     if (!box) return;
     clear(box);
     box.hidden = false;
-    box.className = "callout";
-
-    var s = result.summary;
-    var title, tone;
-    if (result.verdict === "complete") {
-      title = "Scenario completed";
-      tone = "callout-ok";
-    } else if (result.verdict === "unanswered") {
-      title = "Nothing to check yet";
-      tone = "callout-warn";
-    } else if (s.correct || s.partial) {
-      title = "Keep going";
-      tone = "callout-warn";
-    } else {
-      title = "Not there yet";
-      tone = "callout-crit";
-    }
-
-    box.classList.add(tone);
-    box.appendChild(el("span", "callout-title", title));
-
-    var line = el("p", "check-score");
-    line.textContent =
-      s.correct + " of " + s.required_total + " required questions correct" +
-      (s.partial ? ", " + s.partial + " partially correct" : "") +
-      (s.incorrect ? ", " + s.incorrect + " still to fix" : "") + ".";
-    box.appendChild(line);
-
-    if (result.verdict === "complete") {
-      var ok = el("p", "mb0");
-      ok.appendChild(document.createTextNode(
-        "Every checkable answer is right. Review your written answers below, then mark the scenario complete."
-      ));
-      box.appendChild(ok);
-    } else if (result.verdict === "unanswered") {
-      box.appendChild(el("p", "mb0",
-        "Fill in at least one answer box, then use Check answers again."));
-    } else {
-      box.appendChild(el("p", "mb0",
-        "Each ✗ line below says which part of the question was not matched. Follow the hint, correct the answer, and check again."));
-    }
-    paintProgress(result);
-  }
-
-  /* Compact progress read-out for the redesigned scenario page. Every number
-     comes from the check response, so the bar can never claim a score the
-     grader did not give. A page without the progress card is unaffected: this
-     returns early when the elements are absent. */
-  function paintProgress(result) {
-    var card = document.getElementById("progress-card");
-    var bar = document.getElementById("progress-bar");
-    var fill = document.getElementById("progress-fill");
-    var label = document.getElementById("progress-label");
-    var hint = document.getElementById("progress-hint");
-    if (!bar || !fill || !label) return;
-
-    var s = result.summary || {};
-    var total = s.required_total || 0;
-    var done = s.required_correct || 0;
-    fill.style.width = (total ? Math.round((done / total) * 100) : 0) + "%";
-    bar.setAttribute("aria-valuenow", String(done));
-    bar.setAttribute("aria-valuemax", String(total));
-    label.textContent = done + " / " + total + " evidence checks passed";
-    if (card) card.classList.toggle("is-complete", Boolean(result.completed));
-    if (hint) {
-      hint.textContent = result.completed
-        ? "Every checkable answer is correct. Mark the scenario complete below."
-        : "Update an answer, then run Check answers again.";
-    }
-  }
-
-  function persistProgress(result) {
-    var scenario = scenarioId();
-    if (!scenario) return;
-    var state = store();
-
-    state.results = state.results || {};
-    state.results[scenario] = {
-      verdict: result.verdict,
-      completed: Boolean(result.completed),
-      correct: result.summary.correct,
-      required_total: result.summary.required_total,
-      assisted: Boolean(state.results[scenario] && state.results[scenario].assisted)
-    };
-    if (result.completed) {
-      state.done = state.done || {};
-      state.done[scenario] = true;
-    }
-    save(state);
-
-    if (typeof window.refreshLabProgress === "function") window.refreshLabProgress();
-  }
-
-  /* ------------------------------------------------------- completion gate
-     "Mark scenario complete" used to be one click away with no verification,
-     so a page could claim a completion that was never earned. It now stays
-     disabled until a check reports every required answer correct, and is
-     re-disabled if the student edits an answer afterwards. */
-  function setCompletionGate(completed) {
-    var doneBtn = document.getElementById("mark-done");
-    if (doneBtn) doneBtn.disabled = !completed;
-    var note = document.getElementById("check-gate-note");
-    if (note) note.hidden = Boolean(completed);
-  }
-
-  function invalidateOnEdit() {
-    var boxes = document.querySelectorAll("textarea[data-question]");
-    Array.prototype.forEach.call(boxes, function (box) {
-      box.addEventListener("input", function () {
-        setCompletionGate(false);
-        clearCompletion();
-        var status = document.getElementById("check-status");
-        if (status) status.textContent = "Answers changed - check again";
-      });
+    box.className = "q-feedback q-feedback-" + kind;
+    box.appendChild(el("p", "q-feedback-title", title));
+    lines.forEach(function (line) {
+      box.appendChild(el("p", "q-feedback-line", line));
     });
   }
 
-  /* Editing after the scenario was marked complete withdraws the completion,
-     otherwise the page would keep claiming a result that no longer matches the
-     answers on screen. */
-  function clearCompletion() {
-    var scenario = scenarioId();
-    if (!scenario) return;
-    var state = store();
-    if (!state.done || !state.done[scenario]) return;
-
-    state.done[scenario] = false;
-    save(state);
-
-    var banner = document.getElementById("done-banner");
-    if (banner) banner.style.display = "none";
-    var undo = document.getElementById("undo-done");
-    if (undo) undo.style.display = "none";
-    var doneBtn = document.getElementById("mark-done");
-    if (doneBtn) doneBtn.textContent = "Mark scenario complete";
-    if (typeof window.refreshLabProgress === "function") window.refreshLabProgress();
+  function hideFeedback(row) {
+    var box = row.querySelector("[data-feedback]");
+    if (box) { box.hidden = true; clear(box); }
   }
 
-  /* ------------------------------------------------------------- checking */
-  function checkAnswers() {
+  /* A normal failed check must never contain the answer. It says which part
+   * was not matched and offers the hint, nothing more. */
+  function paintResult(row, entry) {
+    var status = entry.status;
+    row.querySelectorAll("[data-hint]").forEach(function (b) { b.hidden = false; });
+
+    if (status === "correct") {
+      /* Assistance is sticky. Once the model answer has been shown for this
+       * question the record keeps saying so, so answering it correctly
+       * afterwards must not quietly erase that the student looked. */
+      var wasAssisted = entry.assisted ||
+                        row.getAttribute("data-state") === "assisted";
+      setState(row, wasAssisted ? "assisted" : "correct");
+      showFeedback(row, "ok",
+        wasAssisted ? "Correct (answer was shown earlier)" : "Correct",
+        ["Checked against the evidence. Move on when you are ready."]);
+      return;
+    }
+
+    setState(row, "needs_work");
+    var unmatched = (entry.parts || []).filter(function (p) { return !p.ok; });
+    if (status === "partial") {
+      var lines = ["Partly right. Still needed:"];
+      unmatched.forEach(function (p) { lines.push("- " + p.label); });
+      lines.push("Adjust your answer and check again, or show a hint.");
+      showFeedback(row, "partial", "Partly right", lines);
+    } else {
+      var missed = ["That does not match the evidence yet."];
+      if (unmatched.length) {
+        missed.push("Look again at:");
+        unmatched.forEach(function (p) { missed.push("- " + p.label); });
+      }
+      missed.push("Use Show a hint if you want a pointer. The answer is not given here.");
+      showFeedback(row, "bad", "Not yet", missed);
+    }
+  }
+
+  function showHint(row, entry) {
+    var parts = (entry && entry.parts) || [];
+    var hints = [];
+    parts.forEach(function (p) {
+      if (p.hint && hints.indexOf(p.hint) === -1) hints.push(p.hint);
+    });
+    if (!hints.length) {
+      showFeedback(row, "hint", "Hint",
+        ["Re-read the objective, then the alert and the events it points at."]);
+      return;
+    }
+    showFeedback(row, "hint", "Hint",
+      hints.concat(["Check your answer again once you have followed it."]));
+  }
+
+  /* --------------------------------------------------------------- checking */
+
+  function checkOne(row) {
     var scenario = scenarioId();
-    var button = document.getElementById("check-answers");
-    if (!scenario || !button) return;
+    var id = row.getAttribute("data-question-row");
+    var button = row.querySelector("[data-check]");
+    var status = row.querySelector("[data-check-status]");
+    if (!scenario || !id) return;
+    if (!readAnswer(row)) {
+      if (status) status.textContent = "Enter an answer first";
+      showFeedback(row, "bad", "Nothing to check",
+        ["Fill in your answer, then choose Check answer."]);
+      return;
+    }
 
-    var status = document.getElementById("check-status");
+    if (button) button.disabled = true;
     if (status) status.textContent = "Checking...";
-    button.disabled = true;
 
-    postJSON(API_CHECK, { scenario: scenario, answers: collectAnswers() })
+    var payload = { scenario: scenario, questions: [id], answers: {} };
+    payload.answers[id] = readAnswer(row);
+
+    postJSON(API_CHECK, payload)
       .then(function (result) {
-        Object.keys(result.questions || {}).forEach(function (id) {
-          paintQuestion(id, result.questions[id]);
-        });
-        paintSummary(result);
-        persistProgress(result);
-        setCompletionGate(Boolean(result.completed));
-        if (status) {
-          status.textContent = "Checked " + new Date().toLocaleTimeString();
-        }
+        var entry = (result.questions || {})[id];
+        if (!entry) throw new Error("no verdict returned");
+        paintResult(row, entry);
+        if (status) status.textContent = "Checked " + new Date().toLocaleTimeString();
+        saveDraft(row, "");
+        paintSummary();
+        refreshServerProgress();
+        /* Completion is decided by a whole-scenario check, because only that
+         * sees every required question at once. A scoped check deliberately
+         * cannot report it. So once the finding - the last required question -
+         * is correct, ask for one full check to settle the scenario. Without
+         * this the student could satisfy every question and never finish. */
+        if (id === findingId()) settleCompletion();
       })
-      .catch(function () {
-        var box = document.getElementById("check-result");
-        if (box) {
-          clear(box);
-          box.hidden = false;
-          box.className = "callout callout-warn";
-          box.appendChild(el("span", "callout-title", "Answer checking is unavailable"));
-          box.appendChild(el("p", "mb0",
-            "This page is being served without the lab answer service. Start it with " +
-            "'python scripts\\serve_training.py' (or 'python3 scripts/serve_training.py' on Linux) " +
-            "instead of opening the file directly, then reload. Your answers are still saved in this browser."));
-        }
+      .catch(function (err) {
+        showFeedback(row, "bad", "Checking unavailable",
+          ["This page is being served without the lab answer service. Start it with " +
+           "'python scripts\\serve_training.py' and reload. Your answer is still saved " +
+           "in this browser."]);
         if (status) status.textContent = "Checking unavailable";
       })
       .then(function () {
-        button.disabled = false;
+        if (button) button.disabled = false;
       });
   }
 
-  /* ------------------------------------------------------------- revealing */
-  function attachReveal() {
-    var buttons = document.querySelectorAll("[data-reveal]");
-    Array.prototype.forEach.call(buttons, function (button) {
-      button.hidden = false;
-      button.addEventListener("click", function () {
-        var id = button.getAttribute("data-reveal");
-        var row = questionRow(id);
-        if (!row) return;
+  /* The finding is the last required question, so it is the point at which a
+   * whole-scenario verdict becomes meaningful. */
+  function findingId() {
+    var row = allRows().filter(isFinding)[0];
+    return row ? row.getAttribute("data-question-row") : null;
+  }
 
-        var existing = row.querySelector(".answer-solution");
-        if (existing) {                      // toggle
-          existing.hidden = !existing.hidden;
-          button.textContent = existing.hidden ? "Show solution" : "Hide solution";
-          return;
-        }
+  /* One unscoped check over everything currently on the page. This is the only
+   * request that can report completion, and it is made at most once, when the
+   * finding has just been answered correctly. */
+  function settleCompletion() {
+    var scenario = scenarioId();
+    if (!scenario) return Promise.resolve();
+    return postJSON(API_CHECK, { scenario: scenario, answers: collectAnswers() })
+      .then(function (result) {
+        setCompletionGate(Boolean(result.completed));
+        paintSummary();
+      })
+      .catch(function () { /* completion settles on the next visit */ });
+  }
 
-        button.disabled = true;
-        postJSON(API_REVEAL, { scenario: scenarioId(), question: id })
-          .then(function (data) {
-            var box = row.querySelector(".answer-solution") || el("div", "answer-solution");
-            clear(box);
-            box.appendChild(el("span", "callout-title",
-              "Model answer" + (data.assisted ? " \u00b7 assisted" : "")));
-            box.appendChild(el("p", "mb0", data.solution || ""));
-            /* Shown only when the server marked the reveal as assisted, so the
-               note can never claim a consequence that did not happen. */
-            if (data.assisted) {
-              box.appendChild(el("p", "solution-note mb0",
-                "Revealing the model answer marks this question as assisted."));
-            }
-            box.hidden = false;
-            if (!row.querySelector(".answer-solution")) row.appendChild(box);
-            button.textContent = "Hide solution";
-            /* Re-enable: the button is a real <button>, so leaving it disabled
-               suppressed its click event and the "Hide solution" label became a
-               dead control. The solution is cached in the row, so the toggle
-               above now handles show/hide without another request. */
-            button.disabled = false;
+  /* ---------------------------------------------------------------- reveal */
+  /* Unchanged in substance: same endpoint, same gates. Assistance is sticky, so
+   * once the model answer has been shown the question stays marked assisted
+   * even if the student then answers it correctly. */
 
-            var state = store();
-            state.results = state.results || {};
-            state.results[scenarioId()] = state.results[scenarioId()] || {};
-            state.results[scenarioId()].assisted = true;
-            save(state);
-          })
-          .catch(function () {
-            button.disabled = false;
-            button.textContent = "Solution unavailable";
-          });
-      });
+  function attachReveal(row) {
+    var button = row.querySelector("[data-reveal]");
+    if (!button) return;
+    button.hidden = false;
+    button.addEventListener("click", function () {
+      var id = button.getAttribute("data-reveal");
+      var existing = row.querySelector(".answer-solution");
+      if (existing) {
+        existing.parentNode.removeChild(existing);
+        button.textContent = "Show the answer";
+        return;
+      }
+      if (button.disabled) return;
+      button.disabled = true;
+      postJSON(API_REVEAL, { scenario: scenarioId(), question: id })
+        .then(function (result) {
+          var box = el("div", "answer-solution");
+          box.appendChild(el("span", "answer-solution-title", "Model answer"));
+          box.appendChild(el("p", "mb0", result.solution || ""));
+          if (result.review_prompt) {
+            box.appendChild(el("p", "answer-solution-rubric", result.review_prompt));
+          }
+          row.appendChild(box);
+          button.textContent = "Hide the answer";
+          setState(row, "assisted");
+          paintSummary();
+          refreshServerProgress();
+        })
+        .catch(function (err) {
+          showFeedback(row, "bad", "Answer not available",
+            [(err && err.message) || "Check your answers first, then try again."]);
+        })
+        .then(function () { button.disabled = false; });
     });
   }
 
-  /* ------------------------------------------------- restore last verdict */
-  function restoreLastResult() {
-    var scenario = scenarioId();
-    if (!scenario) return;
-    var state = store();
-    var results = state.results || {};
-    if (!results[scenario]) return;
+  /* ------------------------------------------------------ server progress */
 
-    var saved = results[scenario];
-    var status = document.getElementById("check-status");
-    if (status) {
-      status.textContent = saved.completed
-        ? "Last checked: all required answers correct"
-        : "Last checked: " + (saved.correct || 0) + " of " +
-          (saved.required_total || 0) + " required correct";
-    }
-    /* The gate is re-evaluated on the next Check answers run, so it starts
-       closed after a reload even if the last check passed. */
-    setCompletionGate(false);
+  function refreshServerProgress() {
+    if (typeof window.refreshLabProgress === "function") window.refreshLabProgress();
+  }
+
+  /* Restore verdicts from the server so a reload shows the real state rather
+   * than an empty page. Sourced from GET student/progress/<scenario>, which is
+   * the only per-question view; it is scoped to the signed-in student by the
+   * session, so nothing here can read another student's progress. A question id
+   * the server knows but this page no longer carries is skipped, which is what
+   * makes the id migration safe. */
+  function applyServerProgress(detail) {
+    if (!detail || !detail.questions) return false;
+    detail.questions.forEach(function (q) {
+      var row = questionRow(q.question_id);
+      if (!row) return;
+      if (q.assisted) { setState(row, "assisted"); return; }
+      if (q.last_status === "correct") { setState(row, "correct"); }
+      else if (q.last_status) { setState(row, "needs_work"); }
+    });
+    return Boolean(detail.completed);
+  }
+
+  function loadServerProgress() {
+    var scenario = scenarioId();
+    if (!scenario || !window.LabAuth) { paintSummary(); return; }
+    /* Root-relative on purpose. This page is served from /scenarios/, so a
+     * relative "student/progress/..." resolves under /scenarios/ and 404s -
+     * which silently loses every verdict on reload. */
+    fetch(API_STUDENT + "/progress/" + encodeURIComponent(scenario), {
+      credentials: "same-origin",
+      cache: "no-store"
+    })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (detail) {
+        if (detail) setCompletionGate(applyServerProgress(detail));
+        paintSummary();
+      })
+      .catch(function () { paintSummary(); });
+  }
+
+  /* ------------------------------------------------------------------ init */
+
+  function postJSON(url, payload) {
+    return fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function (response) {
+      return response.json().then(function (body) {
+        if (!response.ok) {
+          throw new Error((body && body.error) || "request failed");
+        }
+        return body;
+      });
+    });
   }
 
   function init() {
-    var button = document.getElementById("check-answers");
-    if (button) button.addEventListener("click", checkAnswers);
+    var legacy = document.getElementById("check-answers");
+    if (legacy) legacy.hidden = true;
 
-    invalidateOnEdit();
+    allRows().forEach(function (row) {
+      wireOrdering(row);
+      wireBoolean(row);
+      wireDraft(row);
+      attachReveal(row);
 
-    /* self-review checkboxes, stored per scenario/question */
-    var boxes = document.querySelectorAll(".self-review-check");
-    var state = store();
-    Array.prototype.forEach.call(boxes, function (box) {
-      var id = box.getAttribute("data-self-review");
-      var seen = state.reviewed || {};
-      var key = scenarioId() + ":" + id;
-      box.checked = Boolean(seen[key]);
-      box.addEventListener("change", function () {
-        var current = store();
-        current.reviewed = current.reviewed || {};
-        current.reviewed[key] = box.checked;
-        save(current);
-      });
+      var draft = loadDraft(row);
+      if (draft) {
+        if (row.getAttribute("data-control") === "ordering") {
+          paintOrdered(row, draft);
+        } else if (row.getAttribute("data-control") === "boolean") {
+          var lead = draft.split(" ")[0].toLowerCase();
+          var button = row.querySelector('.btn-choice[data-choice="' + lead + '"]');
+          if (button) button.setAttribute("aria-pressed", "true");
+          var why = row.querySelector(".answer-why");
+          if (why) why.value = draft.slice(lead.length).trim();
+        } else {
+          var field = row.querySelector("[data-question]:not(.ord-value)");
+          if (field) field.value = draft;
+        }
+      }
+
+      var check = row.querySelector("[data-check]");
+      if (check) check.addEventListener("click", function () { checkOne(row); });
     });
 
-    attachReveal();
-    restoreLastResult();
+    var legacyCheck = document.getElementById("check-answers");
+    if (legacyCheck) legacyCheck.addEventListener("click", function (e) { e.preventDefault(); });
+
+    loadServerProgress();
+    if (typeof window.refreshLabProgress === "function") window.refreshLabProgress();
   }
 
   if (document.readyState === "loading") {
@@ -431,4 +571,8 @@
   } else {
     init();
   }
+
+  /* Exposed for the scenario page and for tests: apply a server progress
+   * detail to the queue without going through the network. */
+  window.applyInvestigationProgress = applyServerProgress;
 })();

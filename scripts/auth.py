@@ -20,6 +20,18 @@ Passwords
     unknown username still runs one scrypt against a fixed dummy hash, so the
     response time does not reveal whether an account exists.
 
+Brute-force protection
+    Failed logins are counted per (username, client IP) in memory. Six failures
+    inside five minutes pauses that pair for one minute. The counters are
+    process-local and bounded, so this is a speed bump against a scripted
+    attack, not a distributed defence - and it is deliberately gentle, because a
+    classroom full of students mistyping a password must never be locked out.
+
+    A successful login clears the counter, so a student who slips a few times
+    recovers immediately. Counting applies to *every* submitted username,
+    including ones that do not exist, so the throttle cannot be used to
+    discover which accounts are real.
+
 Sessions
     The browser gets a random token in an HttpOnly cookie. Only the SHA-256 of
     that token is stored, so a leaked database file cannot be replayed as a
@@ -45,22 +57,34 @@ import hmac
 import re
 import secrets
 import sqlite3
+import threading
+import time
+from collections import OrderedDict
 from typing import Any, Dict, Optional, Tuple
 
 import labdb
 
 __all__ = [
+    "LOGIN_BLOCK_SECONDS",
+    "LOGIN_FAILURE_LIMIT",
+    "LOGIN_FAILURE_WINDOW_SECONDS",
+    "MAX_RATE_LIMIT_KEYS",
     "SESSION_TTL_SECONDS",
     "AuthenticationError",
     "DuplicateUsername",
     "InvalidCredentials",
     "authenticate",
+    "clear_login_failures",
     "create_session",
     "delete_session",
     "hash_password",
     "hash_token",
+    "login_block_seconds",
     "public_user",
+    "purge_expired_sessions",
+    "record_login_failure",
     "register_user",
+    "reset_rate_limits",
     "resolve_session",
     "verify_password",
 ]
@@ -96,6 +120,28 @@ MAX_PASSWORD_LENGTH = 200
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 _SCHEME = "scrypt"
+
+# ------------------------------------------------------- rate-limit settings
+#
+# Deliberately forgiving. A classroom has real people typing real passwords, and
+# a lockout that punishes a mistyped password trains students to write it on a
+# sticky note instead. These numbers allow a handful of genuine slips and only
+# stop a machine.
+
+#: Failures inside the window before the pair is paused.
+LOGIN_FAILURE_LIMIT = 6
+
+#: How long failures accumulate, in seconds.
+LOGIN_FAILURE_WINDOW_SECONDS = 300
+
+#: How long the pair is paused once the limit is reached, in seconds. Short
+#: enough that nobody is locked out of a lab session by walking away.
+LOGIN_BLOCK_SECONDS = 60
+
+#: Upper bound on tracked (username, IP) pairs. The table is in-process memory,
+#: so this is what stops an attacker cycling usernames from growing it without
+#: limit. Oldest entries are evicted first.
+MAX_RATE_LIMIT_KEYS = 4096
 
 
 # ------------------------------------------------------------------ errors
@@ -414,3 +460,111 @@ def touch_session(token: Optional[str], *, path: Optional[str] = None) -> bool:
     except Exception:
         return False
     return True
+
+
+# ------------------------------------------------------- session housekeeping
+
+def purge_expired_sessions(*, path: Optional[str] = None, now: Optional[str] = None) -> int:
+    """Delete sessions whose expiry has passed. Returns the number removed.
+
+    Safe to call as often as you like: with nothing to remove it reports zero.
+    There is no background scheduler yet - the server calls this once at
+    startup, and a later phase can call it on a timer.
+    """
+    return labdb.delete_expired_sessions(now=now, path=path)
+
+# --------------------------------------------------------- brute-force limits
+#
+# In-process, in-memory, deliberately small. This is a speed bump that turns
+# password guessing into roughly one guess per second instead of thousands per
+# second. It is not a distributed defence and does not pretend to be one; a
+# shared store would be the answer for a real deployment, but that would add the
+# external dependency this project is built to avoid.
+#
+# The lock is held only for microseconds of dict arithmetic, so concurrent login
+# threads serialise on nothing that matters.
+
+_rate_lock = threading.Lock()
+#: key -> (failure_count, window_started_at, blocked_until)
+_rate_state: "OrderedDict[str, Tuple[int, float, float]]" = OrderedDict()
+
+
+def _rate_key(username: Optional[str], ip: Optional[str]) -> str:
+    """Identify a throttling bucket.
+
+    The username is folded to lower case and the client IP is part of the key,
+    so two students on different machines never share a counter, and one
+    student cannot throttle the whole classroom behind a shared NAT.
+    """
+    name = (username or "").strip().lower() or "-"
+    return "%s|%s" % (name, ip or "-")
+
+
+def _rate_prune(now: float) -> None:
+    """Drop buckets whose window has passed. Caller holds the lock."""
+    stale = [
+        key for key, record in _rate_state.items()
+        if now - record[1] > LOGIN_FAILURE_WINDOW_SECONDS and record[2] <= now
+    ]
+    for key in stale:
+        del _rate_state[key]
+
+
+def _rate_enforce_cap() -> None:
+    """Keep the table at or below :data:`MAX_RATE_LIMIT_KEYS`.
+
+    Called *after* an insert, so the bound is exact rather than overshooting by
+    one. Caller holds the lock.
+    """
+    while len(_rate_state) > MAX_RATE_LIMIT_KEYS:
+        _rate_state.popitem(last=False)
+
+
+def login_block_seconds(username: Optional[str], ip: Optional[str] = None) -> int:
+    """Seconds until this pair may try again. Zero means allowed right now."""
+    key = _rate_key(username, ip)
+    now = time.monotonic()
+    with _rate_lock:
+        _rate_prune(now)
+        record = _rate_state.get(key)
+        if record is None:
+            return 0
+        if record[2] > now:
+            return int(record[2] - now) + 1
+        return 0
+
+
+def record_login_failure(username: Optional[str], ip: Optional[str] = None) -> int:
+    """Count one failed login. Returns seconds left on any block, else zero.
+
+    Called for every rejected attempt, whether or not the username exists, so
+    the throttle cannot be used to discover which accounts are real.
+    """
+    key = _rate_key(username, ip)
+    now = time.monotonic()
+    with _rate_lock:
+        _rate_prune(now)
+        count, window_start, blocked_until = _rate_state.get(key, (0, now, 0.0))
+        if now - window_start > LOGIN_FAILURE_WINDOW_SECONDS:
+            count, window_start = 0, now
+        count += 1
+        if count >= LOGIN_FAILURE_LIMIT and blocked_until <= now:
+            blocked_until = now + LOGIN_BLOCK_SECONDS
+        _rate_state[key] = (count, window_start, blocked_until)
+        _rate_state.move_to_end(key)
+        _rate_enforce_cap()
+        if blocked_until > now:
+            return int(blocked_until - now) + 1
+        return 0
+
+
+def clear_login_failures(username: Optional[str], ip: Optional[str] = None) -> None:
+    """Forget a pair's failures. Called after a successful login."""
+    with _rate_lock:
+        _rate_state.pop(_rate_key(username, ip), None)
+
+
+def reset_rate_limits() -> None:
+    """Empty the whole table. Intended for tests."""
+    with _rate_lock:
+        _rate_state.clear()

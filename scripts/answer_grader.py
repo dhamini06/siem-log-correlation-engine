@@ -33,6 +33,15 @@ Values that change every lab session - absolute UTC timestamps and PIDs - are
 deliberately absent from the key and therefore never graded. The key only
 contains stable facts: addresses, account names, hosts, counts, durations,
 rule names, thresholds, severities and command lines.
+
+Checking one question at a time
+-------------------------------
+``grade`` accepts an optional ``questions`` list. The investigation loop checks
+a single objective, gets an immediate verdict for it, and only then advances.
+The alternative - submitting the whole scenario and grading every question -
+has two defects the loop avoids: a student sees a wall of verdicts for work they
+have not done, and their recorded progress is rewritten for every question each
+time they check anything at all.
 """
 
 from __future__ import annotations
@@ -41,6 +50,7 @@ import json
 import os
 import re
 import unicodedata
+from typing import Iterable, Optional
 
 __all__ = [
     "ANSWER_KEY_PATH",
@@ -107,13 +117,40 @@ _BOUNDARY = re.compile(r"[a-z0-9_]")
 # Answers that are a refusal rather than an attempt. Without this guard a box
 # containing "no idea" would satisfy a yes/no question, because the word "no"
 # matches the expected negative answer. Such a box counts as unanswered.
+#
+# Entries are the *stripped* form: normalize(), then remove everything that is
+# not alphanumeric. So "I do not know" arrives here as "idonotknow". Matching is
+# on the whole stripped string, not a substring, which is what keeps a real
+# attempt safe - "I do not know the account" strips to
+# "idonotknowtheaccount" and is therefore not a refusal.
 _REFUSAL_WORDS = frozenset({
     "noidea", "notsure", "idk", "dontknow", "unknown", "unclear", "noclue",
     "noclu", "nothing", "skip", "skipping", "tbd", "todo", "cannotfind",
     "cantfind", "couldnotfind", "notapplicable", "unsure", "unspecified",
     "pending", "guess", "maybe", "sorry", "stuck", "lost", "help", "erm",
+    # Multi-word refusals. The single-word guard above caught "dont know"
+    # because it strips to "dontknow", but not the spelled-out forms, and the
+    # Phase 6 question model leans on this: several objectives are yes/no, so a
+    # refusal that slips through as an attempt would be graded on its letters.
+    "idonotknow", "imnotsure", "imunsure", "wontknow", "cannotanswer",
+    "cannotdetermine", "cannotconfirm", "cannotidentify", "cannotrecall",
+    "cannotsee", "notaware", "dontunderstand", "do not know",
+    "noanswer", "noideaatall", "nothelpful", "notattempting",
+    "couldntanswer", "couldnotdetermine", "couldnotidentify",
+    "couldnotanswer", "couldnotfind", "couldnotsee",
+    "unknownanswer", "notknown", "indeterminate", "unanswered",
+    # The same phrases with a leading "I" and an apostrophe. normalize() folds
+    # the apostrophe away, so "I don't know" strips to "idontknow", which is a
+    # different string from "dontknow" and so was not caught above.
+    "idontknow", "idontunderstand", "imnotcertain", "imuncertain",
+    "imunable", "icannotanswer", "icannotdetermine", "icannotconfirm",
+    "icannotidentify", "icanotsay", "iwonder", "imguessing", "imguessing",
+    "icouldnotanswer", "icouldnotdetermine", "icouldnotidentify",
+    "icouldnotfind", "icouldnotsee", "iwouldguess", "ithinksowouldbe",
+    "iamnotsure", "imnotcertain", "iamunsure", "iamnotcertain",
 })
 _ANSWER_LETTERS = re.compile(r"[^a-z0-9]+")
+_ANSWER_DIGITS = re.compile(r"^[0-9][0-9.,:/ -]*$")
 
 
 def is_refusal(text: str) -> bool:
@@ -121,13 +158,24 @@ def is_refusal(text: str) -> bool:
 
     Guards against a near-empty box accidentally satisfying a low-specificity
     part, such as a yes/no question that is looking for the word "no".
+
+    A bare numeric answer is exempt. "10" is two characters and would otherwise
+    fall under the too-short rule, but it is a complete and correct answer to a
+    count or port question, and the Phase 6 question model asks for exactly
+    that. The exemption needs no length floor because it is already narrow in
+    the only way that matters: the answer must consist *solely* of digits and
+    separators. A boolean part looks for words such as "yes" and "no", which a
+    digit-only answer cannot contain, so nothing that previously scored as a
+    refusal can now pass a part. "no" and "x" stay refusals.
     """
     if not text:
         return True
-    letters = _ANSWER_LETTERS.sub("", normalize(text))
-    if len(letters) <= 2:
+    folded = normalize(text)
+    if len(_ANSWER_LETTERS.sub("", folded)) <= 2:
+        if _ANSWER_DIGITS.match(folded):
+            return False
         return True
-    return letters in _REFUSAL_WORDS
+    return _ANSWER_LETTERS.sub("", folded) in _REFUSAL_WORDS
 
 
 class GradingError(Exception):
@@ -258,13 +306,27 @@ def _question_status(parts, answered: bool) -> str:
     return "incorrect"
 
 
-def grade(scenario: str, answers: dict, key: dict = None, reveal_solution: bool = False) -> dict:
+def grade(scenario: str, answers: dict, key: dict = None, reveal_solution: bool = False,
+          questions: Optional[Iterable[str]] = None) -> dict:
     """Grade one submission.
 
     Returns a dict safe to send to the browser. When ``reveal_solution`` is
     true the ``solution`` string is included for the single requested question
     only, together with the ``assisted`` marker the UI uses to record that the
     student chose to see it.
+
+    ``questions`` restricts the check to the named question ids, which is what
+    the per-question investigation loop uses: a student who has just answered
+    one objective should not receive a verdict for every other question, and
+    must not have their recorded progress for an untouched question
+    overwritten. The restriction is validated against the scenario's own
+    question set, so a client cannot ask for an id that does not belong to the
+    scenario, and an empty or unrecognised selection is an error rather than a
+    silent whole-scenario check.
+
+    The counts in ``summary`` describe the *selected* questions only, so a
+    single-question response can never be mistaken for a whole-scenario
+    verdict. ``scoped`` says which it is.
     """
     key = key if key is not None else load_key()
     scenarios = key.get("scenarios", {})
@@ -272,12 +334,33 @@ def grade(scenario: str, answers: dict, key: dict = None, reveal_solution: bool 
     if spec is None:
         raise GradingError(f"unknown scenario {scenario!r}")
 
-    questions = spec.get("questions", {})
+    all_questions = spec.get("questions", {})
+    selected = None
+    if questions is not None:
+        requested = list(questions)
+        if not requested:
+            raise GradingError("questions must name at least one question")
+        # Type-check before the membership test. Without this a list containing a
+        # dict reaches ``q not in all_questions``, which raises TypeError
+        # ("unhashable type") rather than a GradingError - so a malformed client
+        # request would surface as an unhandled error instead of a clean refusal.
+        if not all(isinstance(q, str) for q in requested):
+            raise GradingError("questions must be question ids")
+        unknown = [q for q in requested if q not in all_questions]
+        if unknown:
+            # Naming an id this scenario does not have would either grade
+            # nothing or disclose that the id exists elsewhere in the key.
+            raise GradingError("unknown question %r for scenario %r"
+                               % (sorted(unknown)[0], scenario))
+        selected = set(requested)
+
     results = {}
     required_total = required_correct = 0
     answered_total = 0
 
-    for qid, question in sorted(questions.items()):
+    for qid, question in sorted(all_questions.items()):
+        if selected is not None and qid not in selected:
+            continue
         raw = answers.get(qid, "")
         raw = raw if isinstance(raw, str) else ""
         raw = raw[:MAX_ANSWER_CHARS]
@@ -323,7 +406,12 @@ def grade(scenario: str, answers: dict, key: dict = None, reveal_solution: bool 
     incorrect = sum(1 for r in results.values() if r["status"] == "incorrect")
     self_review = sum(1 for r in results.values() if r["status"] == "self_review")
 
-    completed = required_total > 0 and required_correct == required_total
+    # A scoped check says nothing about the rest of the scenario, so it must not
+    # report completion. The scenario is complete when every *required*
+    # question is correct, and the final finding is one of them: a student
+    # cannot finish by answering evidence questions alone.
+    scoped = selected is not None
+    completed = (not scoped) and required_total > 0 and required_correct == required_total
     if not answered_total:
         verdict = "unanswered"
     elif completed:
@@ -338,6 +426,8 @@ def grade(scenario: str, answers: dict, key: dict = None, reveal_solution: bool 
         "title": spec.get("title", scenario),
         "verdict": verdict,
         "completed": completed,
+        "scoped": scoped,
+        "checked": sorted(results),
         "summary": {
             "correct": correct,
             "partial": partial,

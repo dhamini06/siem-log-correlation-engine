@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create a student account | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
+<meta name="description" content="Create a student account for the BlueCloud Softech Solutions cybersecurity training lab.">
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="register">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="instructions.html">Investigation Method</a>
+      <a href="login.html">Sign in</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="section">
+    <div class="wrap">
+      <div class="auth-layout">
+
+        <div class="auth-card">
+          <div class="section-head">
+            <span class="kicker">Student account</span>
+            <h1 class="auth-title">Create Student Account</h1>
+            <p class="auth-sub">This takes a moment and gives you an identity for your
+            investigation work in the lab.</p>
+          </div>
+
+          <form id="auth-form" data-mode="register" class="auth-form" novalidate>
+            <div class="field">
+              <label for="username">Username</label>
+              <input type="text" id="username" name="username" autocomplete="username"
+                     autocapitalize="none" spellcheck="false" required
+                     minlength="3" maxlength="32" aria-describedby="username-hint auth-message">
+              <p class="field-hint" id="username-hint">3&ndash;32 characters. Letters, digits, dot,
+              dash and underscore.</p>
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <input type="password" id="password" name="password"
+                     autocomplete="new-password" required minlength="8"
+                     aria-describedby="password-hint">
+              <p class="field-hint" id="password-hint">At least 8 characters.</p>
+            </div>
+
+            <div class="field">
+              <label for="confirm">Confirm password</label>
+              <input type="password" id="confirm" name="confirm"
+                     autocomplete="new-password" required minlength="8"
+                     aria-describedby="confirm-hint">
+              <p class="field-hint" id="confirm-hint">Type it once more to be sure.</p>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Create account</button>
+
+            <p id="auth-message" class="form-message" role="status" aria-live="polite" hidden></p>
+          </form>
+
+          <p class="auth-alt">Already have an account? <a href="login.html">Sign in</a>.</p>
+        </div>
+
+        <aside class="auth-aside">
+          <h2>What happens next</h2>
+          <ol class="steps">
+            <li><strong>Your account is created</strong>You will be taken to the sign-in page.</li>
+            <li><strong>You sign in</strong>Your session is held in a secure cookie, not in the page.</li>
+            <li><strong>You work the scenarios</strong>Your notes stay in your own browser.</li>
+          </ol>
+          <p class="auth-note">This form creates a <strong>student</strong> account only.
+          Instructor and administrator accounts are provisioned separately and cannot be
+          created here.</p>
+        </aside>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="mb0">BlueCloud Softech Solutions &middot; Lab #07 &middot; SIEM Log Correlation Engine</p>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/auth-form.js"></script>
+</body>
+</html>

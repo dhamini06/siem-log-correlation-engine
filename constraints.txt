@@ -1,0 +1,52 @@
+# Transitive dependency pins for a reproducible install.
+#
+#   python -m pip install -r requirements.txt -c constraints.txt
+#
+# Why this file exists
+# --------------------
+# requirements.txt pins the six packages this project imports directly. It does
+# not pin what those packages pull in, and pip is otherwise free to resolve
+# each of those to whatever is newest on the day of the install. Two technicians
+# installing this lab a fortnight apart could therefore end up with different
+# code, and a server that fails to install is a server nobody can reproduce the
+# build of.
+#
+# Scope and limits
+# ----------------
+#   * These pins MUST stay consistent with the direct pins in requirements.txt.
+#     A constraints file cannot override a direct requirement: if the two
+#     disagree, pip reports a conflict rather than resolving it. Test F in
+#     tests/test_deployment_hardening.py asserts that consistency mechanically,
+#     so the two files cannot drift apart unnoticed.
+#   * Every version below is a py3-none-any wheel: no compilation on the
+#     target, and no compiler on a host where sudo is restricted.
+#   * This is NOT an upgrade. Nothing here moves a package above the version
+#     requirements.txt already asks for.
+#   * This does NOT pin the whole world. Transitive-of-transitive packages
+#     (pytest's own pluggy/iniconfig chain, for example) are deliberately left
+#     floating: they are test-only, they cannot affect the running lab, and
+#     pinning them adds maintenance for no deployment benefit.
+#
+# Verified: every version here exists on PyPI and ships a universal wheel.
+# The server target is CPython 3.14 on Ubuntu.
+
+# --- pulled in by elasticsearch 8.13.0 (requires elastic-transport >=8.13,<9) --
+# Pinned to 8.13.0 so the transport layer matches the client release rather than
+# drifting forward independently of it.
+elastic-transport==8.13.0
+
+# --- pulled in by requests 2.31.0 ---------------------------------------------
+certifi==2024.8.30
+charset-normalizer==3.4.0
+idna==3.10
+
+# --- pulled in by APScheduler 3.10.4 ------------------------------------------
+six==1.17.0
+pytz==2025.2
+# tzlocal 5.2 additionally requires tzdata on Windows and backports.zoneinfo
+# below Python 3.9. Neither marker applies on Ubuntu + CPython 3.14, so nothing
+# extra is needed for the deployment target.
+tzlocal==5.2
+
+# --- pulled in by pytest-cov 5.0.0 ---------------------------------------------
+coverage==7.6.1

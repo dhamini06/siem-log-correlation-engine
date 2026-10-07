@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice Scenarios | BlueCloud Softech Solutions Cybersecurity Training Lab</title>
+<meta name="description" content="Five SIEM incident investigations to work in order. Each brief names the alert, the evidence to pull and the questions to answer.">
+<link rel="stylesheet" href="assets/css/bluecloud.css">
+</head>
+<body data-page="scenarios">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <div class="brand">
+      <img class="brand-mark" src="assets/img/bluecloud-logo.png" alt="BlueCloud Softech Solutions">
+      <div class="brand-text">
+        <span class="brand-name">BlueCloud Softech Solutions</span>
+        <span class="brand-sub">Cybersecurity Training Lab</span>
+      </div>
+    </div>
+    <nav class="site-nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="instructions.html">Investigation Method</a>
+      <a href="scenarios.html" aria-current="page">Scenarios</a>
+      <a href="login.html" data-auth-signin>Sign in</a>
+      <span class="nav-identity" data-auth-identity hidden>Signed in</span>
+      <a href="#" class="nav-signout" data-auth-signout hidden>Sign out</a>
+      <a href="#" class="nav-cta" data-kibana-dash>Open SIEM Dashboard</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Scenarios</div>
+    <h1>Practice scenarios</h1>
+    <p class="sub">Five investigations, worked in order. Each one is a real alert in the
+    SOC Triage Board; each brief tells you what to pull and what to prove.</p>
+  </div>
+</section>
+
+<main id="main">
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Practice Scenarios</span>
+        <h2>Five practical investigations</h2>
+        <p class="lede">
+          Work them in order. Each builds on the detection logic and evidence vocabulary of
+          the one before it. Your answers must be supported by data you find in the SIEM.
+        </p>
+      </div>
+
+      <div class="grid grid-3">
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 01</span>
+            <span class="diff diff-easy">Easy</span>
+          </div>
+          <h3>Brute Force Investigation</h3>
+          <p class="desc">
+            A burst of failed SSH logons against the web server. Establish the source IP,
+            the accounts attacked, the exact time window, and the corroborating firewall
+            evidence.
+          </p>
+          <p class="scenario-state" data-scenario="scenario-1" hidden></p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: brute_force</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-1-brute-force.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent-orange scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 02</span>
+            <span class="diff diff-medium">Medium</span>
+          </div>
+          <h3>Successful Login After Brute Force</h3>
+          <p class="desc">
+            The same failure pattern &mdash; but this time a login succeeded. Correlate the
+            failures to the success and explain why the severity escalated to critical.
+          </p>
+          <p class="scenario-state" data-scenario="scenario-2" hidden></p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: successful_brute_force</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-2-successful-brute-force.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 03</span>
+            <span class="diff diff-medium">Medium</span>
+          </div>
+          <h3>Suspicious Post-Login Process Execution</h3>
+          <p class="desc">
+            A Windows account authenticated, then launched a command shell seconds later.
+            Measure the gap, read the command line, and explain why it is dangerous.
+          </p>
+          <p class="scenario-state" data-scenario="scenario-3" hidden></p>
+          <div class="foot">
+            <span class="chip chip-light">Rule: suspicious_process_post_login</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-3-post-login-execution.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent-orange scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 04</span>
+            <span class="diff diff-hard">Hard</span>
+          </div>
+          <h3>Linux Privilege Escalation &amp; Reverse Shell</h3>
+          <p class="desc">
+            A Linux account logged in over SSH, then used sudo to start an interactive
+            root shell. Separate this from the legitimate sudo activity on the same host.
+          </p>
+          <p class="scenario-state" data-scenario="scenario-4" hidden></p>
+          <div class="foot">
+            <span class="chip chip-light">Event: privilege_escalation</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-4-linux-privilege-escalation.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card card-accent scenario-card">
+          <div class="card-top">
+            <span class="num">Scenario 05</span>
+            <span class="diff diff-hard">Hard</span>
+          </div>
+          <h3>Multi-Event SOC Investigation</h3>
+          <p class="desc">
+            The full incident. Build the complete timeline across every host, rank the
+            findings by severity, and write the incident conclusion a SOC would escalate.
+          </p>
+          <p class="scenario-state" data-scenario="scenario-5" hidden></p>
+          <div class="foot">
+            <span class="chip chip-light">All rules</span>
+            <a class="btn btn-blue btn-sm" href="scenarios/scenario-5-multi-event-soc-investigation.html">Start Investigation</a>
+          </div>
+        </article>
+
+        <article class="card scenario-card" style="border-top:3px solid var(--text-muted)">
+          <div class="card-top"><span class="num">Reference</span></div>
+          <h3>Investigation method</h3>
+          <p class="desc">
+            The six-step loop, the event field and rule reference, and why some activity
+            correctly raises no alert.
+          </p>
+          <div class="foot">
+            <span class="chip chip-light">Student guide</span>
+            <a class="btn btn-outline btn-sm" href="instructions.html">Investigation method</a>
+          </div>
+        </article>
+
+      </div>
+
+      <div class="hero-actions" style="margin-top:1.4rem">
+        <a class="btn btn-primary" data-kibana-dash>Open SOC Triage Board</a>
+        <a class="btn btn-outline" href="instructions.html">Read the investigation method</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>BlueCloud Softech Solutions</h4>
+        <p>Cybersecurity training lab platform. Lab #07 &mdash; SIEM Log Correlation Engine.</p>
+        <p style="margin:0"><span class="chip chip-orange">Training use only</span></p>
+      </div>
+      <div>
+        <h4>Lab</h4>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="instructions.html">Investigation method</a></li>
+          <li><a href="scenarios.html" aria-current="page">Practice scenarios</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a data-kibana-dash>Open SOC Triage Board</a></li>
+          <li><a data-kibana-link>Kibana Discover</a></li>
+          <li><a data-kibana-alerts>Discover alerts</a></li>
+          <li><a data-es-link>Elasticsearch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Detection rules</h4>
+        <ul>
+          <li><a href="instructions.html">brute_force</a></li>
+          <li><a href="instructions.html">successful_brute_force</a></li>
+          <li><a href="instructions.html">suspicious_process_post_login</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">
+      <span>&copy; <span id="year">2026</span> BlueCloud Softech Solutions. All lab data is synthetic.</span>
+      <span>Free &middot; Local &middot; No external services</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/lab.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/student-progress.js"></script>
+</body>
+</html>

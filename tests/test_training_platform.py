@@ -50,6 +50,10 @@ def test_instructions_page_exists():
     assert os.path.isfile(os.path.join(TRAINING, "instructions.html"))
 
 
+def test_scenarios_page_exists():
+    assert os.path.isfile(os.path.join(TRAINING, "scenarios.html"))
+
+
 def test_assets_exist():
     assert os.path.isfile(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
     assert os.path.isfile(os.path.join(TRAINING, "assets", "js", "lab.js"))
@@ -69,7 +73,8 @@ def test_exactly_five_scenarios():
 
 @pytest.mark.parametrize(
     "page",
-    ["index.html", "instructions.html"] + [os.path.join("scenarios", n) for n in SCENARIO_FILES],
+    ["index.html", "instructions.html", "scenarios.html"]
+    + [os.path.join("scenarios", n) for n in SCENARIO_FILES],
 )
 def test_page_has_bluecloud_branding(page):
     assert "BlueCloud Softech Solutions" in read(os.path.join(TRAINING, page))
@@ -77,7 +82,7 @@ def test_page_has_bluecloud_branding(page):
 
 def test_official_logo_is_wired_into_every_page():
     """The real BlueCloud logo is displayed, not the BC monogram placeholder."""
-    for page in ["index.html", "instructions.html"] + [
+    for page in ["index.html", "instructions.html", "scenarios.html"] + [
         os.path.join("scenarios", n) for n in SCENARIO_FILES
     ]:
         html = read(os.path.join(TRAINING, page))
@@ -116,10 +121,15 @@ def test_img_brand_mark_css_rule_exists():
 
 
 def test_header_layout_unchanged():
-    """Only the mark changed: 68px header bar and the wordmark are intact."""
+    """The header keeps an explicit bar height and the wordmark is intact.
+
+    Phase 2 retargeted the bar from 68px to 60px as part of the type scale, so
+    the assertion follows the new value rather than being dropped: a regression
+    back to an implicit height would still fail here.
+    """
     css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
-    assert "min-height: 68px" in css
-    assert "--bc-blue-600" in css and "--bc-orange-500" in css
+    assert "min-height: 60px" in css
+    assert "--brand-blue:" in css and "--brand-orange:" in css
     for page in ["index.html"] + [os.path.join("scenarios", SCENARIO_FILES[0])]:
         html = read(os.path.join(TRAINING, page))
         assert 'class="brand-name">BlueCloud Softech Solutions<' in html, page
@@ -127,17 +137,131 @@ def test_header_layout_unchanged():
 
 
 def test_theme_defines_blue_primary_and_orange_accent():
+    """Blue primary, orange accent, dark security neutrals.
+
+    Phase 2 renamed the scale to --brand-* / --surface-*; the palette values
+    themselves did not move, so the hexes are still pinned here.
+    """
     css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
-    assert "--bc-blue-" in css
-    assert "--bc-orange-" in css
-    assert re.search(r"--bc-blue-600:\s*#1257c0", css)
-    assert re.search(r"--bc-orange-500:\s*#ff7a00", css)
-    assert "--ink-900" in css  # dark security neutrals
+    assert "--brand-blue-" in css
+    assert "--brand-orange-" in css
+    assert re.search(r"--brand-blue:\s*#1257c0", css)
+    assert re.search(r"--brand-orange:\s*#ff7a00", css)
+    assert "--surface-inverse:" in css  # dark security neutrals
+
+
+def test_colour_literals_live_only_in_the_token_block():
+    """Phase 2: no raw colour outside :root.
+
+    Every hex, rgb() and rgba() value belongs in the token declaration block, so
+    a colour change is a one-line change and the palette cannot drift into
+    near-duplicates spread across the file. Named colours used as literal CSS
+    keywords (e.g. `border: 1px solid transparent`) are not colours and are
+    not covered by this check.
+    """
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    body = css[css.index("}") + 1:]  # everything after the :root block
+    literals = re.findall(r"#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)", body)
+    assert not literals, "colour literals outside the token block: %r" % literals[:8]
+    root = css[:css.index("}") + 1]
+    assert re.search(r"#[0-9a-fA-F]{6}\b", root), "the token block should hold the palette"
+
+
+def test_spacing_and_type_use_only_the_declared_scales():
+    """Phase 2: six spacing steps, seven type steps, nothing ad hoc."""
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    root = css[css.index(":root"):css.index("}") + 1]
+    for step in ("--s-1", "--s-2", "--s-3", "--s-4", "--s-5", "--s-6"):
+        assert re.search(re.escape(step) + r":\s*\d+px", root), step
+    for size in ("--fs-xs", "--fs-sm", "--fs-base", "--fs-md",
+                 "--fs-lg", "--fs-xl", "--fs-2xl"):
+        assert re.search(re.escape(size) + r":\s*\d+px", root), size
+    # no other rem-based spacing or font-size may leak in
+    body = css[css.index("}") + 1:]
+    stray_fs = re.findall(r"font-size:\s*([\d.]+rem)", body)
+    assert not stray_fs, "font sizes must come from the --fs-* scale: %r" % stray_fs[:8]
+    stray_mp = re.findall(r"margin[^:]*:\s*[\d.]+rem", body)
+    assert not stray_mp, "margins must come from the --s-* scale: %r" % stray_mp[:8]
+
+
+def test_light_surface_text_never_uses_the_raw_orange():
+    """Phase 2: orange text on a light background needs the ink token.
+
+    #d96300 measures 3.3-3.7:1 on white and on the light section tints, so any
+    orange label on a light surface uses --brand-orange-ink (6.8:1) instead.
+    Measured in a browser; the guard stops the raw orange creeping back in.
+    """
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    assert re.search(r"--brand-orange-ink:\s*#8a3d00", css)
+    body = css[css.index("}") + 1:]
+    # `border-color:` and `background-color:` also contain the substring
+    # "color:", so the negative lookbehind is required to match a real
+    # foreground declaration.
+    pattern = r"(?<![\w-])color:\s*var\(--brand-orange-deep\)"
+    offenders = [i + 1 for i, line in enumerate(body.split("\n"))
+                 if re.search(pattern, line)]
+    assert not offenders, (
+        "orange-deep used as text on line(s) %r; use --brand-orange-ink" % offenders)
+
+
+def test_dark_section_link_rule_does_not_capture_buttons():
+    """`.section-dark a` outranks `.btn-primary`, which painted light blue text
+    onto a filled orange button at 1.43:1. The exclusion is load-bearing."""
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    assert re.search(r"\.section-dark a:not\(\.btn\)", css), (
+        "the :not(.btn) guard is missing; dark-section links would override "
+        "button foreground colours")
+    assert not re.search(r"(?m)^\.section-dark a\s*\{", css)
+
+
+def test_muted_text_clears_wcag_aa_on_light_surfaces():
+    """--text-muted is used for labels and hints, so it must clear 4.5:1."""
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    m = re.search(r"--text-muted:\s*(#[0-9a-fA-F]{6})", css)
+    assert m, "no --text-muted token"
+
+    def lum(hexv):
+        ch = [int(hexv[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        f = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in ch]
+        return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2]
+
+    for bg in ("#ffffff", "#f6f8fc", "#f1f5fb"):
+        l1, l2 = sorted([lum(m.group(1)), lum(bg)], reverse=True)
+        assert (l1 + 0.05) / (l2 + 0.05) >= 4.5, (
+            "--text-muted is %.2f:1 on %s, needs 4.5:1"
+            % ((l1 + 0.05) / (l2 + 0.05), bg))
+
+
+def test_only_two_radii_and_one_shadow_level():
+    """Phase 2: restrained shape and elevation.
+
+    Pill radii are allowed, but only for status/difficulty chips and the
+    progress track. Ordinary containers must use one of the two radii, and the
+    single shadow level is reserved for the sticky header.
+    """
+    css = read(os.path.join(TRAINING, "assets", "css", "bluecloud.css"))
+    body = css[css.index("}") + 1:]
+    radii = {r.strip() for r in re.findall(r"border-radius:\s*([^;]+);", body)}
+    allowed = {
+        "var(--radius-sm)",   # inputs, inline code, small panels
+        "var(--radius)",      # cards, tables, buttons, callouts
+        "var(--pill)",        # status / difficulty chips, progress track
+        "50%",                # circular step and tick counters
+        "0",                  # deliberately unboxed figures
+        # the joined hint group: only its outer two corners are rounded
+        "var(--radius) var(--radius) 0 0",
+        "0 0 var(--radius) var(--radius)",
+    }
+    stray = radii - allowed
+    assert not stray, "unexpected border-radius values: %r" % sorted(stray)
+    # the card itself must not carry a shadow any more
+    card = re.search(r"\.card\s*\{([^}]*)\}", body)
+    assert card and "box-shadow" not in card.group(1), ".card should not be shadowed"
 
 
 def test_no_external_dependencies_in_pages():
     """Free and local: no CDN, no web fonts, no third-party scripts."""
-    for page in ["index.html", "instructions.html"] + [
+    for page in ["index.html", "instructions.html", "scenarios.html"] + [
         os.path.join("scenarios", n) for n in SCENARIO_FILES
     ]:
         html = read(os.path.join(TRAINING, page))
@@ -155,31 +279,135 @@ def test_css_is_dependency_free():
 
 # -- Student flow -----------------------------------------------------------
 
-def test_landing_has_required_sections():
+def test_home_is_a_compact_student_dashboard():
+    """The home page is a dashboard, not a course page.
+
+    It keeps the lab framing, the progress panel and the SOC entry point, and
+    nothing else. The long-form material lives on instructions.html and the
+    scenario cards on scenarios.html.
+    """
     html = read(os.path.join(TRAINING, "index.html"))
-    assert "Start Investigation" in html
-    assert "Open SIEM Dashboard" in html
-    assert "Lab Objective" in html
-    assert "What you will learn" in html
+    assert "SIEM Log Correlation Engine" in html          # the lab still names itself
+    assert "Open SOC Dashboard" in html
+    assert 'id="my-progress"' in html
+    assert 'id="soc-operations"' in html
+    # the course sections that used to live here have moved
+    for moved in ("What you will learn", "Practice Scenarios",
+                  "Basic Instructions", "Lab Objective",
+                  "How an alert connects to the evidence"):
+        assert moved not in html, f"{moved} should have moved off the home page"
+    # and it stays compact
+    assert html.count("<section") <= 4, "the home page should not be a long page again"
+
+
+def test_scenarios_page_holds_the_five_cards():
+    html = read(os.path.join(TRAINING, "scenarios.html"))
     assert "Practice Scenarios" in html
-    assert "Basic Instructions" in html
-
-
-def test_landing_links_to_every_scenario():
-    html = read(os.path.join(TRAINING, "index.html"))
     for name in SCENARIO_FILES:
-        assert name in html, f"landing page does not link {name}"
+        assert name in html, f"scenarios page does not link {name}"
+    assert html.count('class="card') >= 5
 
 
-def test_landing_explains_do_not_guess():
-    html = read(os.path.join(TRAINING, "index.html"))
-    assert "not to guess" in html.lower()
+def test_every_scenario_is_reachable_from_the_home_page():
+    """One hop from the dashboard: the cards moved, the links must still work."""
+    home = read(os.path.join(TRAINING, "index.html"))
+    assert "scenarios.html" in home
 
 
-def test_instructions_cover_all_seven_steps():
+def test_course_material_survived_the_move():
+    """Nothing load-bearing was deleted in the Phase 1A de-duplication.
+
+    The portal used to repeat the same material on six or more pages, so the old
+    version of this test asserted that specific *section headings* still existed.
+    That is the wrong shape of assertion: it would force the duplication back.
+    What matters is the technical content, so assert on that instead - the
+    concepts must exist somewhere in the portal, whatever they are called.
+    """
+    blob = "".join(
+        read(os.path.join(TRAINING, page)).lower()
+        for page in ("index.html", "instructions.html", "scenarios.html")
+    )
+    for phrase in ("practice scenarios", "lab objective", "what this lab is",
+                   "your only evidence source", "correlation",
+                   "raw_event", "brute_force", "suspicious_process_post_login"):
+        assert phrase in blob, f"lost during the move: {phrase}"
+
+
+def test_instructional_material_appears_exactly_once():
+    """Phase 1A: 'explain once, apply many times'.
+
+    The generic method was previously restated on the reference page and on all
+    five scenario pages. These are the load-bearing duplicates; if one reappears
+    the de-duplication has been undone.
+    """
+    reference = read(os.path.join(TRAINING, "instructions.html"))
+    scenario_pages = [read(os.path.join(SCENARIOS_DIR, n)) for n in SCENARIO_FILES]
+
+    # the duplicated four-step "Investigation workflow" block
+    assert "Investigation workflow" not in read(os.path.join(TRAINING, "scenarios.html"))
+    for page in scenario_pages:
+        assert "Investigation workflow" not in page
+
+    # the duplicated "what you will learn" card grids
+    for page in scenario_pages + [read(os.path.join(TRAINING, "scenarios.html"))]:
+        assert "Skills Practised" not in page, "skills grid reintroduced into a scenario"
+        assert "What this exercise builds" not in page
+
+    # the footer reminder that restated the evidence rule on every scenario page
+    for page in scenario_pages:
+        assert "Do not guess &mdash; find the record" not in page
+        assert "Every answer must cite evidence" not in page
+
+    # the method itself still has exactly one home
+    assert "The investigation loop" in reference
+
+
+def test_each_scenario_keeps_one_short_mission():
+    """A scenario states its own mission, at most four steps, and points at each
+    tool once. The generic workflow block that used to sit above the mission is
+    gone, so the mission is now the only step list on the page."""
+    for name in SCENARIO_FILES:
+        html = read(os.path.join(SCENARIOS_DIR, name))
+        main = html[html.index('<main id="main">'):html.index("</main>")]
+        lists = re.findall(r'<ol class="steps">(.*?)</ol>', main, re.S)
+        assert len(lists) == 1, "%s: expected one mission list, found %d" % (name, len(lists))
+        steps = re.findall(r"<li>", lists[0])
+        assert 1 <= len(steps) <= 4, "%s: mission has %d steps, at most 4 allowed" % (
+            name, len(steps))
+        assert main.count("data-kibana-dash") <= 1, "%s: too many dashboard links" % name
+        assert main.count("data-kibana-link") <= 1, "%s: too many Discover links" % name
+
+
+def test_instructions_explains_do_not_guess():
     html = read(os.path.join(TRAINING, "instructions.html"))
-    for step in ("Step 1", "Step 2", "Steps 3 to 7"):
-        assert step in html
+    assert "do not guess" in html.lower()
+
+
+def test_instructions_cover_the_investigation_loop():
+    """The loop used to be labelled 'Step 1' / 'Step 2' / 'Steps 3 to 7'.
+
+    The reference is now six named sections rather than a numbered walk, so assert
+    the substance of each step instead of the old kicker labels.
+    """
+    html = read(os.path.join(TRAINING, "instructions.html"))
+    for step in ("Pick the alert your brief describes", "Read the alert",
+                 "Follow the evidence", "Read the raw lines", "Widen for context",
+                 "Write the finding"):
+        assert step in html, f"investigation loop lost the step: {step}"
+
+
+def test_instructions_are_six_compact_sections():
+    """Phase 1A: the reference is a reference, not a wall of cards.
+
+    The old page was 2,657 words over 12 sections with 28 cards and 14 callouts.
+    """
+    html = read(os.path.join(TRAINING, "instructions.html"))
+    main = html[html.index('<main id="main">'):html.index("</main>")]
+    assert len(re.findall(r"<section", main)) == 6, "the reference should be six sections"
+    text = re.sub(r"<[^>]+>", " ", main)
+    words = len(re.findall(r"[A-Za-z][A-Za-z'\-]+", text))
+    assert words <= 1500, f"reference page is {words} words, should be far shorter"
+    assert html.count('class="card') <= 4, "the reference should not be a card grid"
 
 
 def test_instructions_list_the_nine_identifications():
@@ -210,9 +438,15 @@ def test_scenario_has_required_parts(name):
     assert "Incident story" in html
     assert "What you know at the start" in html
     assert "Investigation task" in html
-    assert "Answer every question" in html
-    assert "Skills Practised" in html
+    # Phase 6 replaced "Answer every question" with the investigation framing.
+    assert "Work the investigation" in html, (
+        "%s: the question section lost its heading" % name)
+    assert "Answer every question" not in html, (
+        "%s: the worksheet heading is back" % name)
     assert "Progressive Hints" in html
+    # Phase 1A removed the "Skills Practised" grid from every scenario.
+    # test_instructional_material_appears_exactly_once guards against it
+    # coming back, so it must not be required here.
 
 
 @pytest.mark.parametrize("name", SCENARIO_FILES)
@@ -223,9 +457,18 @@ def test_scenario_has_a_start_action(name):
 
 @pytest.mark.parametrize("name", SCENARIO_FILES)
 def test_scenario_has_questions_and_notes(name):
+    """Each page carries its own questions, not Scenario 01's.
+
+    The assertion used to look for 's1e1' on every page, which only passed because
+    the worksheet ids were identical across scenarios. Reading the page's own
+    scenario number is what actually proves the page is populated.
+    """
     html = read(os.path.join(SCENARIOS_DIR, name))
-    assert 'data-question="q1"' in html
-    assert html.count('data-question="') >= 5
+    number = re.search(r"scenario-(\d)", name).group(1)
+    assert 'data-question="s%se1"' % number in html, name
+    ids = set(re.findall(r'data-question-row="(s\d(?:e\d+|f))"', html))
+    assert len(ids) >= 7, "%s: %d questions" % (name, len(ids))
+    assert "s%sf" % number in ids, "%s: no final analyst finding" % name
     assert "Mark scenario complete" in html
 
 
@@ -249,7 +492,7 @@ def test_scenario_nav_returns_to_home_and_index(name):
     html = read(os.path.join(SCENARIOS_DIR, name))
     assert 'href="../index.html"' in html, name
     assert 'href="../instructions.html"' in html, name
-    assert "index.html#scenarios" in html, name
+    assert 'href="../scenarios.html"' in html, name
 
 
 @pytest.mark.parametrize("name", SCENARIO_FILES)
@@ -310,10 +553,42 @@ def test_instructor_guide_covers_all_five_scenarios():
 
 
 def test_instructor_guide_has_the_evidence_values():
+    """The guide must carry the stable evidence values.
+
+    Absolute timestamps are deliberately absent: the generator re-bases them every
+    session, which is why the key grades durations and counts instead. The guide's
+    reference timeline is regenerated from the live dataset, so its clock times
+    move between datasets by design and are not asserted here.
+    """
     text = read(INSTRUCTOR_GUIDE)
     for value in ("203.0.113.45", "203.0.113.66", "198.51.100.25", "198.51.100.77",
-                  "svc_backup", "07:25:55", "07:28:04", "07:27:40"):
+                  "svc_backup", "132", "129", "brute_force", "successful_brute_force",
+                  "suspicious_process_post_login"):
         assert value in text, value
+
+
+def test_instructor_guide_documents_the_current_question_ids():
+    """The guide declares itself the answer key's source, so it cannot lag behind.
+
+    Phase 6 renamed every question. A guide still describing the old worksheet
+    numbering would be worse than useless to an instructor marking work.
+    """
+    text = read(INSTRUCTOR_GUIDE)
+    import json
+    with open(os.path.join(REPO_ROOT, "data", "answer-key.json"), encoding="utf-8") as handle:
+        key = json.load(handle)
+    missing = []
+    for scenario, spec in key["scenarios"].items():
+        for qid in spec["questions"]:
+            if qid not in text:
+                missing.append(qid)
+    assert not missing, "question ids absent from the instructor guide: %s" % missing
+    for scenario in key["scenarios"]:
+        assert ("## " in text), "guide structure intact"
+    # No worksheet numbering left behind.
+    import re as _re
+    assert not _re.search(r"\|\s*Q\s*\|", text), "a worksheet Q-number table survived"
+    assert "Check answers" not in text, "the guide still describes the submit-all button"
 
 
 def test_instructor_guide_is_not_served_by_the_training_platform():

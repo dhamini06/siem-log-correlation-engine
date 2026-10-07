@@ -51,6 +51,8 @@ if (-not $SkipDocker) {
     }
 
     Write-Step "Starting Elasticsearch and Kibana"
+    . "scripts\ensure_lab_env.ps1" | Out-Null
+    New-LabEnv -ProjectRoot (Resolve-Path ".")
     docker compose up -d
 
     Write-Step "Waiting for Elasticsearch to report yellow/green (timeout 180s)"
@@ -105,12 +107,22 @@ Write-Step "Setup complete"
 Write-Host @"
 
 Next steps:
-  1. Generate sample logs      : $Python -m src.main generate-samples --scenario all
-  2. Ingest into Elasticsearch : $Python -m src.main ingest --log-dir .\logs\generated
-  3. Run correlation once      : $Python -m src.main correlate --run-once
-  4. Run correlation daemon   : $Python -m src.main correlate
-  5. Import the SOC dashboard  : $Python -m src.main import-dashboard
-  6. Run the test suite        : $Python -m pytest tests -q
+  1. Start the lab              : .\scripts\start_lab.ps1
+
+     start_lab.ps1 decides for itself which dataset the session runs on, by
+     looking for the enterprise source files in .\logs\generated. Force it with
+     -DatasetMode Enterprise or -DatasetMode Demo if you want to be explicit.
+
+     Do not run the two by hand in sequence. `generate-samples` writes the
+     per-scenario demonstration fixtures into the same directory as
+     enterprise-14d_*, and ingesting that directory is refused on purpose: two
+     datasets in one pass means duplicate attack fixtures, two timestamp
+     anchors, and an event count nobody can explain. start_lab.ps1 therefore
+     ingests the enterprise dataset file by file instead.
+
+  2. Import the SOC dashboard    : $Python -m src.main import-dashboard
+  3. Run correlation daemon      : $Python -m src.main correlate
+  4. Run the test suite          : $Python -m pytest tests -q
 
 Dashboard : http://localhost:5601/app/dashboards#/view/siem-soc-triage-board
 "@ -ForegroundColor Green

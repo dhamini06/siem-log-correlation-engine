@@ -26,6 +26,10 @@ SCENARIOS = (
     "false_positive_mix",
 )
 
+#: Fallback stream for the Windows process/parent ids in ``_windows_event``.
+#: Fixed so a caller that supplies no stream still gets reproducible output.
+_WINDOWS_PID_SEED = 4242
+
 SSH_FAILED_TEMPLATE = (
     "{ts} {host} sshd[{pid}]: Failed password for {user} from {ip} port {port} ssh2"
 )
@@ -62,7 +66,18 @@ def _windows_event(
     process: str = "",
     command: str = "",
     parent: str = "",
+    rng: random.Random = None,
 ) -> str:
+    """Render one Windows event record.
+
+    `rng` is used for ProcessId/ParentProcessId. It previously drew from the
+    *global* random module, which made those two fields differ between runs even
+    with a fixed seed, so "same seed, same output" was not true of this file.
+    A caller that omits `rng` gets its own seeded stream rather than global
+    state, so nothing reaches into process-wide randomness.
+    """
+    if rng is None:
+        rng = random.Random(_WINDOWS_PID_SEED)
     data: Dict[str, object] = {
         "TargetUserName": user,
         "TargetDomainName": domain,
@@ -76,10 +91,10 @@ def _windows_event(
         data.update(
             {
                 "NewProcessName": process,
-                "ProcessId": str(random.randint(1000, 9999)),
+                "ProcessId": str(rng.randint(1000, 9999)),
                 "CommandLine": command,
                 "ParentProcessName": parent or "C:\\Windows\\explorer.exe",
-                "ParentProcessId": str(random.randint(500, 999)),
+                "ParentProcessId": str(rng.randint(500, 999)),
                 "SubjectUserName": user,
                 "SubjectDomainName": domain,
             }

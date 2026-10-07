@@ -1,7 +1,10 @@
 /* ==========================================================================
    BlueCloud Softech Solutions - SIEM Lab
-   Shared behaviour: nav state, reveal hints, local progress + answer notes.
-   No frameworks, no network calls. Progress is stored only in the browser.
+   Shared behaviour: nav state, reveal hints, local answer drafts, and the
+   Kibana deep-links every page points at.
+   No frameworks, no network calls. Only the answer drafts and the local
+   scenario-complete toggle are stored in the browser; real progress is
+   server-side (see student-progress.js).
    ========================================================================== */
 (function () {
   "use strict";
@@ -29,7 +32,10 @@
     var note = document.getElementById("saved-note");
     if (note) {
       note.classList.add("show");
-      note.textContent = "Saved in this browser only.";
+      /* Accurate, and deliberately narrow: only the answer drafts live here.
+         Scenario progress (started / attempted / correct / assisted /
+         completed) is written to the server by student-progress.js. */
+      note.textContent = "Draft saved in this browser. Progress saves to your account.";
     }
   }
 
@@ -120,12 +126,31 @@
   window.refreshLabProgress = paintProgressSummary;
 
   /* --------------------------------------------------------- nav state */
+  /* Marks the current page in the nav. Falls back to the containing section,
+     because a scenario page's own filename is not a nav destination: without
+     the fallback every scenario page showed no active item at all, so the nav
+     gave no sense of "you are inside Scenarios". */
   function initNav() {
-    var here = window.location.pathname.split("/").pop() || "index.html";
-    Array.prototype.forEach.call(document.querySelectorAll(".site-nav a"), function (link) {
-      var target = (link.getAttribute("href") || "").split("/").pop();
-      if (target === here) link.classList.add("active");
-    });
+    var path = window.location.pathname;
+    var here = path.split("/").pop() || "index.html";
+    var dir = path.split("/").slice(-2, -1)[0] || "";
+    var links = Array.prototype.slice.call(document.querySelectorAll(".site-nav a"));
+
+    function mark(match) {
+      links.forEach(function (link) {
+        if (match(link)) link.classList.add("active");
+      });
+    }
+    function targetOf(link) {
+      return (link.getAttribute("href") || "").split("/").pop() || "";
+    }
+
+    mark(function (link) { return targetOf(link) === here; });
+    if (dir) {
+      mark(function (link) {
+        return targetOf(link).replace(/\.html$/, "") === dir;
+      });
+    }
   }
 
   /* ------------------------------------------------- open all / hints */
@@ -174,6 +199,86 @@
       });
   }
 
+  /* ------------------------------------------------- Kibana deep-links
+     Single source of truth for the lab endpoints, so each URL lives only
+     here. Every page used to carry its own copy of this block with its own
+     literal time range: eight copies of a value that has to agree is eight
+     chances to disagree, and they did. The dataset spans fourteen days
+     (2026-09-16 to 2026-09-29) while the pages still asked Discover for the
+     last 24 hours, which showed 511 of 9,584 events and none of the four
+     alerts. The window now exists once.
+
+     data-kibana-dash    -> the SOC Triage Board, the student's alert queue
+     data-kibana-link    -> Discover, already pointed at normalized-events-*
+     data-kibana-alerts  -> Discover, already pointed at security-alerts-*
+     data-es-link        -> the Elasticsearch API
+     Students are never sent to Kibana's generic home screen. */
+  var ELASTICSEARCH_URL = "http://localhost:9200";
+  var KIBANA_URL = "http://localhost:5601";
+  var DASHBOARD_ID = "siem-soc-triage-board";
+  var EVENTS_DATA_VIEW = "siem-normalized-events";
+  var ALERTS_DATA_VIEW = "siem-security-alerts";
+
+  /* The investigation window, and why it is absolute rather than relative.
+
+     The dataset is intentionally immutable: 9,584 events over 2026-09-16
+     00:01:07Z .. 2026-09-29 23:57:07Z, generated from one fixed seed and one
+     fixed base timestamp so every cohort investigates byte-identical
+     evidence. Nothing about that dataset moves, so a window expressed
+     relative to "now" is the wrong shape: `now-15d` covered the dataset on
+     the day it was built and silently stopped covering it as the clock
+     advanced, which is exactly how the SOC Triage Board came to show 3 of the
+     4 canonical alerts instead of 4. An absolute window cannot age.
+
+     The bounds carry a day of slack on each side so containment does not
+     depend on the exact first and last event. They must contain the whole
+     dataset, and they must be changed deliberately, together, if the dataset
+     is ever deliberately re-anchored.
+
+     Kibana's Rison time syntax requires an absolute ISO timestamp to be
+     quoted; an unquoted one is silently discarded and the picker falls back
+     to "Last 15 minutes", i.e. zero results. Verified against Kibana 8.13:
+     only `from:'...'` works. So the constants below stay plain unquoted ISO
+     (they are compared byte-for-byte against the board's saved `timeFrom`)
+     and discoverUrl() does the quoting at the point of serialisation. */
+  var INVESTIGATION_FROM = "2026-09-15T00:00:00.000Z";
+  var INVESTIGATION_TO = "2026-09-30T23:59:59.999Z";
+
+  /* Build a Discover URL for one data view, over the absolute window.
+
+     The `index` beside `dataViewId` is not redundant and must not be dropped.
+     Kibana 8.13 normalises a `_a` state that names only `dataViewId` by adding
+     an `index` of its own choosing, and `index` is the field it actually
+     honours. Measured on a real instance: with `dataViewId` alone, the events
+     link resolved to security-alerts-* and showed 4 documents instead of 9,584,
+     silently and with no error anywhere. Adding `index` makes the state
+     explicit and the link lands on the data view it names. The alerts link
+     already resolved correctly by luck - it happens to be the data view
+     Kibana defaults to - so this changes nothing observable for it and makes it
+     correct for the same reason rather than by accident. */
+  function discoverUrl(dataViewId) {
+    return KIBANA_URL + "/app/discover#/?_g=(time:(from:'" + INVESTIGATION_FROM +
+           "',to:'" + INVESTIGATION_TO + "'))" +
+           "&_a=(dataSource:(dataViewId:'" + dataViewId + "',type:dataView)" +
+           ",index:'" + dataViewId + "')";
+  }
+
+  function initKibanaLinks() {
+    var targets = [
+      ["[data-kibana-dash]", KIBANA_URL + "/app/dashboards#/view/" + DASHBOARD_ID],
+      ["[data-kibana-link]", discoverUrl(EVENTS_DATA_VIEW)],
+      ["[data-kibana-alerts]", discoverUrl(ALERTS_DATA_VIEW)],
+      ["[data-es-link]", ELASTICSEARCH_URL],
+    ];
+    targets.forEach(function (pair) {
+      document.querySelectorAll(pair[0]).forEach(function (el) {
+        el.href = pair[1];
+        el.target = "_blank";
+        el.rel = "noopener";
+      });
+    });
+  }
+
   function initYear() {
     var el = document.getElementById("year");
     if (el) el.textContent = String(new Date().getFullYear());
@@ -186,6 +291,7 @@
     initProgressSummary();
     initExpandAll();
     initStackStatus();
+    initKibanaLinks();
     initYear();
   });
 })();

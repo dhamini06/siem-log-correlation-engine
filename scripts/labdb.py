@@ -52,6 +52,7 @@ __all__ = [
     "create_session",
     "create_user",
     "db_path",
+    "delete_expired_sessions",
     "delete_session",
     "get_connection",
     "get_latest_scenario_check",
@@ -61,6 +62,8 @@ __all__ = [
     "get_user_by_id",
     "get_user_by_username",
     "init_db",
+    "progress_for_user",
+    "record_progress",
     "record_scenario_check",
     "reset_connections",
     "utc_now",
@@ -70,8 +73,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_RELATIVE = os.path.join("data", "training.db")
 
 #: Bumped by hand when the schema below changes. There is no migration
-#: framework; version 1 is the initial schema and nothing else exists yet.
-SCHEMA_VERSION = 1
+#: framework: ``init_db`` is additive and idempotent, so an existing version 1
+#: database gains the new tables on the next start without a rebuild and
+#: without losing users, sessions or history.
+#:
+#: 1 = users, sessions, scenario_checks
+#: 2 = adds student_progress and student_progress_questions
+SCHEMA_VERSION = 2
 
 #: The only two roles the platform will ever hold.
 ROLES = ("student", "admin")
@@ -218,8 +226,68 @@ _SCHEMA = (
         assisted        INTEGER NOT NULL DEFAULT 0
     )
     """,
-    # Admin views are always "this student, this scenario, newest first".
-    "CREATE INDEX IF NOT EXISTS idx_checks_user_scenario "
+    # Per-scenario progress roll-up. One row per (student, scenario), so a
+    # student's dashboard is a single indexed read and "which scenarios has
+    # this student touched" needs no scan. A UNIQUE constraint is what stops a
+    # duplicate row from ever being created, whichever code path gets there
+    # first; the write path upserts on top of it.
+    """
+    CREATE TABLE IF NOT EXISTS student_progress (
+        id                INTEGER PRIMARY KEY,
+        user_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scenario_id       TEXT    NOT NULL,
+        -- Set once, when the student first opens the scenario. Never moved.
+        started_at        TEXT    NOT NULL,
+        -- Moved forward by every check, so it answers "when was this student
+        -- last seen on this scenario" without a second table.
+        last_activity_at  TEXT    NOT NULL,
+        -- Submissions, not questions: a student may check the same answers
+        -- many times while iterating.
+        attempts          INTEGER NOT NULL DEFAULT 0,
+        -- Counts of questions, maintained by the roll-up in
+        -- scripts/student_progress.py. questions_attempted counts distinct
+        -- question ids, so re-answering does not inflate it.
+        questions_attempted INTEGER NOT NULL DEFAULT 0,
+        correct_answers   INTEGER NOT NULL DEFAULT 0,
+        partial_answers   INTEGER NOT NULL DEFAULT 0,
+        assisted_answers  INTEGER NOT NULL DEFAULT 0,
+        -- 1 once the grader has said the scenario is complete. The definition
+        -- is answer_grader's, not this column's: see student_progress.py.
+        completed         INTEGER NOT NULL DEFAULT 0,
+        -- Stamped only on the first completion and never cleared.
+        completed_at      TEXT,
+        UNIQUE (user_id, scenario_id)
+    )
+    """,
+     # Per-question state. Needed rather than derived, because "questions
+     # attempted" is a count of *distinct* question ids and "assisted" is a
+     # per-question fact - neither can be computed from a per-submission total.
+     # The question id is a label, not an answer: the submitted text is never
+     # stored anywhere in this schema.
+     """
+     CREATE TABLE IF NOT EXISTS student_progress_questions (
+         id              INTEGER PRIMARY KEY,
+         user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         scenario_id     TEXT    NOT NULL,
+         question_id     TEXT    NOT NULL,
+         first_answered_at TEXT  NOT NULL,
+         last_answered_at  TEXT  NOT NULL,
+         -- 1 once the student has looked up this question's model answer
+         -- through the authenticated reveal endpoint.
+         assisted        INTEGER NOT NULL DEFAULT 0,
+         assisted_at     TEXT,
+         -- Latest verdict for this question, from answer_grader: correct,
+         -- partial, incorrect or self_review. A label, not content.
+         last_status     TEXT,
+         UNIQUE (user_id, scenario_id, question_id)
+     )
+     """,
+     "CREATE INDEX IF NOT EXISTS idx_progress_user ON student_progress(user_id, scenario_id)",
+     "CREATE INDEX IF NOT EXISTS idx_progress_activity ON student_progress(last_activity_at)",
+     "CREATE INDEX IF NOT EXISTS idx_progress_questions ON student_progress_questions(user_id, scenario_id)",
+     "CREATE INDEX IF NOT EXISTS idx_progress_questions_assisted ON student_progress_questions(user_id, assisted)",
+     # Admin views are always "this student, this scenario, newest first".
+     "CREATE INDEX IF NOT EXISTS idx_checks_user_scenario "
     "ON scenario_checks(user_id, scenario_id, checked_at)",
     "CREATE INDEX IF NOT EXISTS idx_checks_user ON scenario_checks(user_id, checked_at)",
     "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
@@ -231,8 +299,19 @@ def init_db(path: Optional[str] = None) -> str:
     """Create the database and schema if needed. Safe to call repeatedly.
 
     Additive only: every statement is ``CREATE ... IF NOT EXISTS``, and nothing
-    here drops or rewrites a table, so existing rows survive. On a fresh file the
-    schema version row is written once; on an existing file it is left alone.
+    here drops or rewrites a table, so existing users, sessions and history all
+    survive. That is what lets one code path serve both a fresh checkout and a
+    database created by an earlier version.
+
+    The recorded version is advanced once the statements have run, so an
+    existing version 1 database ends up stamped 2 and the server's startup
+    check is satisfied. Leaving it at 1 would have made init_db add the tables
+    and then still have the server refuse to start, which is the worst of both
+    outcomes.
+
+    A database stamped with a *newer* version than this code understands is
+    left alone and is not stamped backwards: an older build must not silently
+    claim compatibility with a newer schema.
 
     Returns the absolute path of the database.
     """
@@ -244,6 +323,11 @@ def init_db(path: Optional[str] = None) -> str:
         if existing is None:
             conn.execute(
                 "INSERT INTO schema_meta (version, updated_at) VALUES (?, ?)",
+                (SCHEMA_VERSION, utc_now()),
+            )
+        elif int(existing["version"]) < SCHEMA_VERSION:
+            conn.execute(
+                "UPDATE schema_meta SET version = ?, updated_at = ?",
                 (SCHEMA_VERSION, utc_now()),
             )
     return db_path(path)
@@ -313,6 +397,79 @@ def get_user_by_username(
     return _row_to_dict(
         conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
     )
+
+
+def record_progress(
+    user_id: int,
+    scenario_id: str,
+    *,
+    started: bool = False,
+    activity_at: Optional[str] = None,
+    path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create or touch the progress row for one student and one scenario.
+
+    ``started=True`` creates the row if it is absent; ``started=False`` only
+    moves ``last_activity_at`` on an existing row. That asymmetry is deliberate:
+    opening a scenario is an event, but a check that arrives for a scenario
+    never heard of should not silently invent one.
+
+    The insert uses ``ON CONFLICT DO UPDATE`` rather than a read-then-write, so
+    two concurrent requests for the same student and scenario cannot both
+    decide the row is missing and create it twice. The UNIQUE constraint is the
+    backstop underneath.
+
+    Both branches commit before returning. The connection is thread-local and
+    outlives the request, so an uncommitted write here would hold the database's
+    write lock and make the next progress update fail with "database is locked".
+    """
+    now = activity_at or utc_now()
+    conn = get_connection(path)
+    with conn:
+        if started:
+            conn.execute(
+                """
+                INSERT INTO student_progress
+                    (user_id, scenario_id, started_at, last_activity_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (user_id, scenario_id)
+                DO UPDATE SET last_activity_at = excluded.last_activity_at
+                """,
+                (user_id, scenario_id, now, now),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE student_progress SET last_activity_at = ?
+                WHERE user_id = ? AND scenario_id = ?
+                """,
+                (now, user_id, scenario_id),
+            )
+    # One row, not the list. ``progress_for_user`` is a list because a student
+    # has many scenarios; here the caller's own key narrows it to at most one,
+    # and the empty case is the started=False path finding nothing to touch.
+    rows = progress_for_user(user_id, scenario_id=scenario_id, path=path)
+    return rows[0] if rows else {}
+
+
+def progress_for_user(
+    user_id: int,
+    scenario_id: Optional[str] = None,
+    path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Progress rows for one student, newest activity first.
+
+    The ``user_id`` is always an argument resolved by the caller from a session
+    row. There is no code path in this module that takes a user id from a
+    request body, a query string or a header.
+    """
+    sql = "SELECT * FROM student_progress WHERE user_id = ?"
+    params: List[Any] = [user_id]
+    if scenario_id is not None:
+        sql += " AND scenario_id = ?"
+        params.append(scenario_id)
+    sql += " ORDER BY last_activity_at DESC, scenario_id ASC"
+    return [_row_to_dict(r) for r in get_connection(path).execute(sql, params).fetchall()]
 
 
 def get_user_by_id(user_id: int, path: Optional[str] = None) -> Optional[Dict[str, Any]]:

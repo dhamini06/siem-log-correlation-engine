@@ -1,7 +1,43 @@
+# Lab #07 - SIEM Log Correlation Engine - Elasticsearch + Kibana
+#
+# This stack is required to coexist with other labs on one shared Docker host,
+# so every name it owns is explicit rather than derived. Compose otherwise takes
+# the project name from the containing directory, which on this deployment is
+# the person's directory (/opt/bcssl-teqm/dhamini) - a name that is both generic
+# and able to collide with a sibling lab. Everything below is therefore
+# namespaced:
+#
+#   project   bcssl-siem-lab07
+#   containers bcssl-siem07-es, bcssl-siem07-kibana
+#   network    bcssl-siem07-net
+#   volumes    bcssl-siem07-es-data, bcssl-siem07-kibana-config
+#
+# Generic host-global names ("es", "kibana") are deliberately NOT used. A
+# container_name is unique across the whole Docker host, not per project, so a
+# plain "es" would make `docker compose up` fail with "name already in use" the
+# moment any other lab on this machine used the same word.
+#
+# Changing the volume names below points the stack at different volumes to the
+# ones an earlier revision created. That does not delete the old ones - the data
+# stays in the previous volume - but the stack will start against an empty
+# volume until data is loaded into it. See docs/SERVER_DEPLOYMENT.md.
+
+name: bcssl-siem-lab07
+
+# Bounded logging. Without this, Docker's default json-file driver writes
+# without limit and never rotates; on a host whose root filesystem is shared with
+# nine other labs, an unbounded log is a way to take the machine down. 10 MB x 3
+# files per service caps this lab at roughly 60 MB of container logs.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
-    container_name: es
+    container_name: bcssl-siem07-es
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -14,6 +50,10 @@ services:
       # restarts. A 512m heap needs roughly 1g of additional off-heap/direct memory,
       # so the container gets 2g (~25% heap) which leaves ample headroom for the
       # Kibana-generated background indexes and dashboard aggregations.
+      #
+      # The 512m/2g ratio is the deliberate design and is unchanged here. It is not
+      # a rounding of some larger requirement, and raising the heap without raising
+      # the limit proportionally reintroduces the OOM-kill failure mode above.
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
       # Trim the two background consumers that need no lab data: ML and the GeoIP
       # database downloader.
@@ -21,13 +61,34 @@ services:
       - ingest.geoip.downloader.enabled=false
     volumes:
       - es-data:/usr/share/elasticsearch/data
+    networks:
+      - siem-lab-net
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    # --- Resource limits -------------------------------------------------------
+    # Memory is unchanged at 2g, and for the reason given above rather than by
+    # default. CPU is capped at 2 because this lab shares 16 cores with other
+    # work: an uncapped reindex or a wide Discover aggregation would otherwise
+    # be free to starve everything else on the machine. Measured idle use for
+    # this dataset is well under half a core, so 2 is burst headroom, not a
+    # reservation - the lab's steady-state footprint stays around 2g RAM and
+    # 0.4-0.8 CPU in total across both services.
     mem_limit: 2g
+    cpus: 2.0
+    logging: *default-logging
+    # Security audit H-2: bound to the loopback interface, not every
+    # interface. Elasticsearch here runs with xpack.security disabled, so
+    # anything that can reach this port has unauthenticated cluster
+    # administration - including deleting the shared lab dataset.
+    #
+    # This binding must stay on 127.0.0.1. It is the only thing standing between
+    # a student on the network and the ability to delete the dataset the whole
+    # class is investigating. Do not widen it.
+    # See docs/DEPLOYMENT_MODES.md before exposing this lab to a classroom.
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
       interval: 15s
@@ -38,29 +99,55 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.0
-    container_name: kibana
+    container_name: bcssl-siem07-kibana
     environment:
       # Service hostname, NOT localhost: inside the container localhost is Kibana itself,
       # which is what caused the setup wizard to hang on ECONNREFUSED 127.0.0.1:9200.
       # Supplying elasticsearch.hosts here is what makes Kibana self-configure on every
       # start, so the interactive enrollment wizard is never required.
+      #
+      # `elasticsearch` is the Compose service name, which is the name that is
+      # resolvable on the project network. It is used in preference to the
+      # container_name: depending on the container name here would tie the
+      # service to a host-global identifier for no benefit.
       - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
       - XPACK_SECURITY_ENABLED=false
       - SERVER_HOST=0.0.0.0
-      # Stable lab-only keys so sessions and encrypted saved objects survive restarts
-      # (Kibana otherwise regenerates random keys on every boot).
-      # The defaults below are deliberately obvious placeholders so a clone of this
-      # repository never ships key material. They are NOT secrets and are safe to read.
-      # A real deployment must set these in the environment (see .env.example) to
-      # unique values from `bin/kibana-encryption-keys`; do not reuse the defaults.
-      - XPACK_SECURITY_ENCRYPTIONKEY=${SIEM_ENCRYPTION_KEY:-siem-lab-security-encryption-key-0001}
-      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${SIEM_ESO_ENCRYPTION_KEY:-siem-lab-eso-encryption-key-0000001}
-      - XPACK_REPORTING_ENCRYPTIONKEY=${SIEM_REPORTING_ENCRYPTION_KEY:-siem-lab-reporting-encryption-key-0001}
+      # Security audit H-3: these three used to fall back to fixed strings that
+      # were published in this repository. A default that everyone can read is
+      # not a secret, so there is no default any more: `:?` makes Compose stop
+      # with a clear message when a value is missing.
+      #
+      # They keep signed-in Kibana sessions and encrypted saved objects valid
+      # across restarts. `scripts/setup.ps1` and `scripts/start_lab.ps1` generate
+      # them into a git-ignored .env on first run, so the lab still starts with
+      # no manual step. Real values belong in .env and nowhere else.
+      #
+      # On a server deployment the .env is generated fresh on that host; the
+      # workstation .env is never copied. See docs/SERVER_DEPLOYMENT.md.
+      - XPACK_SECURITY_ENCRYPTIONKEY=${SIEM_ENCRYPTION_KEY:?SIEM_ENCRYPTION_KEY is required - run scripts/setup.ps1 or copy .env.example to .env and set it}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${SIEM_ESO_ENCRYPTION_KEY:?SIEM_ESO_ENCRYPTION_KEY is required - run scripts/setup.ps1 or copy .env.example to .env and set it}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${SIEM_REPORTING_ENCRYPTION_KEY:?SIEM_REPORTING_ENCRYPTION_KEY is required - run scripts/setup.ps1 or copy .env.example to .env and set it}
     volumes:
       - kibana-config:/usr/share/kibana/data
-    mem_limit: 768m
+    networks:
+      - siem-lab-net
+    # Kibana is a Node.js process. 768m was enough on a dedicated workstation
+    # but leaves almost no headroom for importing saved objects or aggregating
+    # across the full dataset, so this lab asks for 1g. It is still a small
+    # fraction of the host and the reason for the change is headroom, not a
+    # larger working set: Kibana does not retain the dataset in memory.
+    mem_limit: 1g
+    cpus: 1.0
+    logging: *default-logging
+    # Security audit H-2: loopback only, same reasoning as Elasticsearch.
+    # Students reach Kibana through the instructor's machine or a reverse
+    # proxy; they must not be handed the cluster's admin port.
+    #
+    # How students are meant to reach Kibana on the shared server is an open
+    # decision, not something this file settles. See docs/DEPLOYMENT_MODES.md.
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1"]
       interval: 15s
@@ -74,10 +161,16 @@ services:
 
 volumes:
   es-data:
+    name: bcssl-siem07-es-data
     driver: local
   kibana-config:
+    name: bcssl-siem07-kibana-config
     driver: local
 
 networks:
+  # This network is declared AND attached to both services above. An earlier
+  # revision declared it without attaching it, so Compose silently used the
+  # auto-generated default network and the declared name did nothing at all.
   siem-lab-net:
+    name: bcssl-siem07-net
     driver: bridge

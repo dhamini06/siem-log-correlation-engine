@@ -452,6 +452,7 @@ def validate_pages() -> None:
     print("TRAINING PLATFORM - pages and structure")
     print("=" * 70)
     import os
+    import re
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     training = os.path.join(root, "training")
@@ -486,8 +487,43 @@ def validate_pages() -> None:
             html = handle.read()
         check(f"{name} has a 'Start Investigation' style action",
               "Open SIEM Dashboard" in html or "data-kibana-dash" in html)
-        check(f"{name} has questions", 'data-question="q1"' in html)
-        check(f"{name} warns against guessing", "not to guess" in html or "Do not guess" in html)
+        # Phase 6: questions are named s<N>e<M> for evidence objectives and s<N>f
+        # for the final analyst finding. The page is checked for the shape rather
+        # than one hard-coded id, so a scenario cannot pass by shipping a single
+        # stub question, and cannot pass while omitting its finding.
+        ids = sorted(set(re.findall(r'data-question-row="(s\d(?:e\d+|f))"', html)))
+        evidence = [i for i in ids if re.fullmatch(r"s\de\d+", i)]
+        findings = [i for i in ids if re.fullmatch(r"s\df", i)]
+        controls = sorted(set(re.findall(r'data-question="(s\d(?:e\d+|f))"', html)))
+        buttons = sorted(set(re.findall(r'data-check="(s\d(?:e\d+|f))"', html)))
+        check(f"{name} has questions", bool(ids), str(len(ids)))
+        check(f"{name} has 6-8 evidence questions",
+              6 <= len(evidence) <= 8, "%d evidence questions" % len(evidence))
+        check(f"{name} has exactly one final analyst finding",
+              len(findings) == 1, str(findings))
+        check(f"{name} gives every question an answer control", controls == ids,
+              "controls %r vs questions %r" % (controls, ids))
+        check(f"{name} gives every question its own Check answer", buttons == ids,
+              "check buttons %r vs questions %r" % (buttons, ids))
+        check(f"{name} has no submit-everything button",
+              'id="check-answers"' not in html)
+        # Phase 1A: the scenario pages no longer restate the full "do not guess"
+        # explanation - it lives once, on the reference page. The short in-scenario
+        # equivalent is that answers must come from SIEM evidence.
+        #
+        # Scoped to the introduction paragraph on purpose. An earlier version
+        # tested `"evidence" in html` and that passed even with the requirement
+        # deleted, because the word appears in every page's rail, its evidence
+        # labels and the class names - a mutation check confirmed the loose form
+        # caught nothing.
+        intro = re.search(r'<p class="qintro">(.*?)</p>', html, re.S)
+        intro_text = intro.group(1) if intro else ""
+        check(f"{name} requires evidence for every answer",
+              any(phrase in intro_text for phrase in (
+                  "not to guess", "Do not guess",
+                  "Use SIEM evidence for every answer",
+              )),
+              ("intro: %r" % intro_text[:80]) if intro_text else "no .qintro paragraph")
 
     guide = os.path.join(root, "docs", "INSTRUCTOR_GUIDE.md")
     check("instructor guide exists", os.path.isfile(guide))

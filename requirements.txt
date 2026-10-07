@@ -1,8 +1,18 @@
 # SIEM Log Correlation Engine - Lab #07
 # Install: python -m pip install -r requirements.txt
+#
+# Deterministic install (recommended for the shared server):
+#   python -m pip install -r requirements.txt -c constraints.txt
+#
+# PyYAML is the only pin that had to move for Python 3.14 compatibility. 6.0.1
+# shipped wheels up to cp312 and no cp314 wheel, so on CPython 3.14 pip falls
+# back to building its C extension from source - which needs python3.14-dev,
+# libyaml-dev and a C compiler. 6.0.3 is the first release publishing cp314
+# wheels (including manylinux2014_x86_64). Nothing else in this file is a
+# compiled distribution; every other pin is py3-none-any.
 
 elasticsearch==8.13.0
-PyYAML==6.0.1
+PyYAML==6.0.3
 APScheduler==3.10.4
 requests==2.31.0
 urllib3==2.2.1

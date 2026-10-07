@@ -85,8 +85,71 @@ def cmd_generate_samples(args: argparse.Namespace) -> int:
     return 0
 
 
+def mixed_dataset_conflict(log_dir: str):
+    """Describe a directory that would ingest two datasets at once.
+
+    Returns ``(enterprise_files, foreign_files)`` when `log_dir` holds the
+    approved enterprise dataset *and* per-scenario demonstration fixtures, and
+    ``None`` otherwise - including for a directory that is missing, empty,
+    enterprise-only, or fixtures-only.
+
+    These are alternatives, not layers. `ingest --log-dir` indexes every log
+    file it finds, so a mixed directory silently produces duplicate attack
+    fixtures, two different timestamp anchors, and an event count nobody can
+    explain. That is not hypothetical: it has now happened twice in this lab, and
+    both times the damage was invisible until the alert count was checked.
+
+    The definition of "belongs to the approved dataset" is not restated here.
+    Both halves come from the enterprise generator - `dataset_paths()` for the
+    files that are ours, `foreign_log_files()` for everything else - so this
+    cannot drift from the generator that writes the dataset.
+    """
+    from .normalization.enterprise_generator import dataset_paths, foreign_log_files
+
+    ours = [os.path.basename(p) for p in dataset_paths(log_dir).values()]
+    present = [name for name in ours if os.path.isfile(os.path.join(log_dir, name))]
+    foreign = foreign_log_files(log_dir)
+    if present and foreign:
+        return present, foreign
+    return None
+
+
 def cmd_ingest(args: argparse.Namespace) -> int:
     """Parse, validate, and index logs into normalized-events-*."""
+    # Checked before the engine is constructed, which is before the first
+    # Elasticsearch write: a refused directory must leave nothing behind, not
+    # even a partially ingested enterprise half.
+    if not args.file:
+        conflict = mixed_dataset_conflict(args.log_dir)
+        if conflict:
+            enterprise, foreign = conflict
+            print(
+                "Refusing to ingest %s: it holds the enterprise dataset and the "
+                "per-scenario demonstration fixtures at the same time.\n"
+                "\n"
+                "  enterprise dataset:\n%s\n"
+                "  demonstration fixtures:\n%s\n"
+                "\n"
+                "Ingesting this directory would index both datasets in one pass - "
+                "duplicate attack fixtures, two timestamp anchors, and an event "
+                "count that cannot be explained. These are alternatives, not "
+                "layers.\n"
+                "\n"
+                "Do one of these instead:\n"
+                "  * ingest one file explicitly:\n"
+                "      python -m src.main ingest --file <path>\n"
+                "  * keep the two datasets in separate directories and point\n"
+                "    --log-dir at whichever one you mean.\n"
+                "Nothing has been indexed."
+                % (
+                    args.log_dir,
+                    "".join("    %s\n" % n for n in enterprise),
+                    "".join("    %s\n" % n for n in foreign),
+                ),
+                file=sys.stderr,
+            )
+            return 1
+
     from .normalization.ingestion import NormalizationEngine, resolve_source_type
 
     source_type = resolve_source_type(args.source_type) if args.source_type else None

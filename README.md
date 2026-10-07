@@ -180,6 +180,8 @@ Docker volumes keep the data.
 python -m src.main generate-samples --scenario all
 
 # 2. Parse, validate and index into normalized-events-YYYY-MM-DD
+#    Refused if .\logs\generated also holds enterprise-14d_* - one dataset per
+#    directory. See docs/DATASET.md section 2.1.
 python -m src.main ingest --log-dir .\logs\generated
 
 # 3. Correlate once
@@ -330,9 +332,11 @@ authentication, and nothing is fetched from the internet at runtime.
 The intended student workflow:
 
 1. Read the incident and objective on the scenario page.
-2. Open the **SOC Triage Board** to find the matching alert.
-3. Read the alert's `reasoning` and `evidence_event_ids`.
-4. Pull the evidence in **Discover** using the ids.
+2. Open the **SOC Triage Board**: the Alert Queue for the current alerts, the
+   activity panels for the surrounding baseline.
+3. Follow an alert's evidence into **Discover**, using the ids from the alert
+   document there.
+4. Pull the supporting events in **Discover**.
 5. Record the nine identifications in the answer boxes.
 6. Write the finding, then mark the scenario complete.
 
@@ -343,7 +347,7 @@ python -m src.main import-dashboard     # or: --kibana-url http://localhost:5601
 ```
 
 Uploads `dashboards/soc-triage-board.ndjson` through Kibana's saved-objects API
-(`overwrite=true`, so re-running is safe): 2 data views, 4 visualizations, and the dashboard.
+(`overwrite=true`, so re-running is safe): 2 data views, 8 visualizations, and the dashboard.
 The manual route is *Kibana → Stack Management → Saved Objects → Import*.
 
 The NDJSON is **generated, not hand-maintained**:
@@ -355,12 +359,58 @@ python scripts/build_dashboard.py --check  # validate data-view and panel refere
 
 `--check` fails if a visualization lacks the `indexRefName` pointer Kibana needs to resolve its
 data view (the cause of the "Could not find the data view: -" error), if a reference dangles,
-or if a data view or its time field is wrong. Run it after any dashboard change.
+if a data view or its time field is wrong, if a panel aggregates on a field its index does not
+map, or if two panels overlap on the grid. Run it after any dashboard change.
 
-Panels: alerts by severity, alert timeline by severity, top source IPs, and suspicious hosts.
-The dashboard's default range is `now-7d` so freshly generated alerts always appear. Both
-`security-alerts-*` and `normalized-events-*` data views are imported, the latter for event
-drill-down.
+#### What the board shows
+
+The board reads **two indices on purpose**, and the split is the point:
+
+| Panel | Reads | Answers |
+|---|---|---|
+| Alert Queue | `security-alerts-*` | What needs attention? One row per correlated alert. |
+| Alerts by Severity | `security-alerts-*` | How serious, and in what proportion? |
+| Alert Timeline | `security-alerts-*` | When was activity detected across the fortnight? |
+| Authentication Activity | `normalized-events-*` | Is the failure rate normal? |
+| Top Source IPs by Event Volume | `normalized-events-*` | Which addresses are active, and how much? |
+| Event Type Mix | `normalized-events-*` | What kinds of telemetry exist? |
+| Event Volume by Host | `normalized-events-*` | Which hosts are busy? |
+| Alerts by Host | `security-alerts-*` | Which hosts drew attention? |
+
+Alert panels describe the four correlated alerts. Activity panels describe the 9,584
+events they were found in, which is what turns "three high alerts" into something an
+analyst can reason about. Volume is not a verdict: the busiest source address is usually
+the busiest, not the most interesting, and the board does not label any address or host.
+
+The board opens on an **absolute** range — `2026-09-15T00:00:00.000Z` to
+`2026-09-30T23:59:59.999Z` — which contains the whole lab dataset with a day of slack
+at each end. It was `now-7d`, then `now-15d`; both were relative, and a relative window
+against a fixed dataset ages until it hides evidence. That is exactly what happened:
+`now-15d` stopped containing the 2026-09-17 brute-force alert and the board quietly
+showed 3 of the 4 canonical alerts. An absolute window cannot.
+
+Reproducibility is worth more here than freshness. The dataset is generated from one
+fixed seed and one fixed base timestamp so every cohort investigates the same alerts and
+gets the same graded answers; re-anchoring it to chase the calendar would trade that
+away for nothing, since the window can simply be stated absolutely. The training pages'
+Discover links use the same two values, so following a link and opening the board show
+the same data; `tests/test_dashboard_ndjson.py` and `tests/test_ui_render_contracts.py`
+assert the two have not drifted apart and that the window still contains the dataset.
+
+The board also saves `timeRestore: true`, which reads backwards but is not.
+Measured on Kibana 8.13: with `false` the board ignores its own saved range and
+falls back to "Last 15 minutes" — zero alerts, no error, not even a "No results"
+message. With `true` it applies the saved range and shows all four canonical
+alerts. So the flag that sounds like "don't let the browser override the lab's
+range" is in fact the one that makes the lab's range apply at all.
+
+If the dataset is ever deliberately re-anchored, the window changes deliberately in the
+same change, in `scripts/build_dashboard.py` and `training/assets/js/lab.js`. Nothing
+recomputes it at run time. See `docs/DATASET.md` section 4.
+
+The Alert Queue deliberately does **not** show the alert's `reasoning` field. That text
+states the findings outright, which would answer the scenario questions before the student
+looks at any evidence. It is still available in **Discover** for an instructor.
 
 Pulling alert evidence directly:
 
@@ -415,10 +465,15 @@ Hosts: `web-01` (37 events, Linux), `fw-01` (7, firewall), `app-01` (4, Windows)
 | C | `suspicious_process_post_login` | high | `198.51.100.25` | `jdoe` | `app-01` | 2 events (`cmd.exe /c whoami && net user administrator /active:yes`) | 20 s |
 | D | `suspicious_process_post_login` | high | `198.51.100.77` | `deploy` | `web-01` | 2 events (`sudo … COMMAND=/bin/bash -i`) | 45 s |
 
-Counts, severities, and elapsed times are fixed by the generator. **Absolute UTC timestamps shift
-with every session**, because samples are generated relative to "now" so the alerts always fall
-inside the dashboard's `now-7d` window and the engine's lookback. This is also why each session
-starts with a reset.
+Counts, severities, and elapsed times are fixed by the generator.
+
+**Absolute UTC timestamps no longer shift with every session.** The older 50-event sample set
+was generated relative to "now" so the alerts always fell inside the dashboard window and the
+engine's lookback. The Phase 4A dataset is instead a *fixed* 14-day window anchored at
+`2026-09-16T00:00:00Z`, so the same four alerts always land on the same dates and the same
+document ids. That makes the lab reproducible, and it also means the alerts age: any fixed
+relative window in Kibana or in the training pages' Discover links will eventually need
+widening. `docs/DATASET.md` tracks this.
 
 A representative alert document:
 
@@ -580,14 +635,24 @@ scripts/
 
 ## Deployment notes
 
-The lab is built for a Linux host as well as Windows. Target: Ubuntu 22.04 LTS.
+There are two environments and they are not interchangeable. For the shared
+company server — isolation names, resource limits, secret handling, and the
+deployment sequence — see **[docs/SERVER_DEPLOYMENT.md](docs/SERVER_DEPLOYMENT.md)**.
+
+The lab is built for a Linux host as well as Windows. Verified locally on
+Windows; the Linux baseline is Ubuntu 22.04 LTS or newer, including Ubuntu 26.04.
 
 ```bash
 git clone <your-repo-url> siem-log-correlation-engine
 cd siem-log-correlation-engine
 
+# Elasticsearch will not start below this. It is a kernel sysctl, so it needs
+# elevated privileges and must be set by whoever administers the host - it
+# cannot be set from inside the container. Check with: sysctl vm.max_map_count
+sudo sysctl -w vm.max_map_count=262144
+
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt -c constraints.txt
 
 docker compose up -d
 python -m src.main init-templates
@@ -595,38 +660,66 @@ python -m src.main init-templates
 # Each session (the reset is what keeps the dataset reproducible)
 python scripts/reset_lab_data.py --yes
 python -m src.main generate-samples --scenario all
-python -m src.main ingest --log-dir ./logs/generated
+python -m src.main ingest --log-dir ./logs/generated   # one dataset per directory
 python -m src.main correlate --run-once
 python -m src.main import-dashboard
 python scripts/validate_scenarios.py
 ```
 
-Serve the training platform under a reverse proxy (nginx is the simplest option):
+The `ingest` line above indexes the per-scenario demonstration fixtures and
+nothing else, which is why it succeeds on a clean checkout. It is **refused** if
+`./logs/generated` also holds `enterprise-14d_*`: `ingest --log-dir` will not
+index two datasets in one directory, prints the conflicting filenames, indexes
+nothing — not even the enterprise half — and exits non-zero. To rebuild the
+approved enterprise dataset instead, follow `docs/DATASET.md` section 2, which
+generates with `--clean` and correlates the full fourteen days with
+`scripts/correlate_range.py`.
+
+Serve the training platform behind a reverse proxy (nginx is the simplest option).
+The platform is the component that enforces authentication, answer grading and
+progress, so the proxy must forward to it — it must **not** serve `training/` as
+static files:
 
 ```bash
-python3 scripts/serve_training.py --port 8080   # behind nginx, bound to localhost
+# behind the proxy, bound to loopback. The port is explicit: the server no
+# longer picks a different one if this is busy, it exits and says so.
+python3 scripts/serve_training.py --host 127.0.0.1 --port 8080
 ```
 
 ```nginx
 server {
     listen 80;
     server_name siem-lab.example.com;
-    root /opt/siem-log-correlation-engine/training;
-    index index.html;
-    location / { try_files $uri $uri/ =404; }
-    location = /answer-key { return 404; }   # defence in depth
+
+    # Proxy to the platform. Do NOT replace this with `root .../training`.
+    # Serving the directory statically would bypass the platform's own access
+    # control - every scenario page would be readable without signing in - and
+    # would break /api/check, /api/reveal, /api/auth/* and /api/es-status,
+    # because none of those exist as files. See docs/SERVER_DEPLOYMENT.md.
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
 Notes:
 
 - Bind Kibana and Elasticsearch to `localhost` or a private network. They are not hardened.
-- Elasticsearch needs ~2 GB and Kibana ~768 MB of memory in this configuration; the JVM heap is
-  pinned to 512 MB so the container cannot over-commit. Lower it and Elasticsearch will be
-  OOM-killed, which looks like a blank dashboard.
+- Elasticsearch is capped at 2 GB and Kibana at 1 GB in this configuration; the JVM heap is
+  pinned to 512 MB so the container cannot over-commit. Lower the heap and Elasticsearch will be
+  OOM-killed, which looks like a blank dashboard. Raise the heap without raising the container
+  limit and you get the same failure, because the off-heap buffers cross the limit too.
 - The `es-data` and `kibana` volumes hold all state. **Never** run `docker compose down -v` or
   delete those volumes — you will lose the imported data views and dashboard.
-- For a hardened deployment, apply `docker-compose.prod.yml` (see below).
+- **Do not apply `docker-compose.prod.yml`.** It is not usable: its port list is concatenated
+  onto the base file's rather than replacing it, so it binds 9200 and 5601 twice and cannot
+  start; its certificate paths do not exist; and the Python client has no TLS or credential
+  support, so enabling xpack security would disconnect the engine rather than protect it.
+  Enabling xpack authentication is a later, separate piece of work.
 
 ---
 
@@ -635,22 +728,37 @@ Notes:
 This is a training lab running on `localhost`. It is **not** hardened.
 
 - `xpack.security.enabled=false` in `docker-compose.yml`, for lab convenience only. Elasticsearch
-  and Kibana are unauthenticated.
-- Kibana's three `XPACK_*_ENCRYPTIONKEY` settings are read from the environment with clearly
-  labelled local-development fallbacks, so the lab starts with no `.env` and the repository
-  contains no key material:
+  and Kibana are unauthenticated — which is why both ports are published to `127.0.0.1` only:
 
   ```yaml
-  XPACK_SECURITY_ENCRYPTIONKEY: ${SIEM_ENCRYPTION_KEY:-siem-lab-security-encryption-key-0001}
+  ports:
+    - "127.0.0.1:9200:9200"   # was "9200:9200"
+    - "127.0.0.1:5601:5601"   # was "5601:5601"
   ```
 
-  The defaults are stable on purpose — Kibana regenerates random keys on every boot otherwise,
-  which invalidates sessions and encrypted saved objects. They are public placeholders, **not
-  secrets**, and are safe to read. A real deployment must set `SIEM_ENCRYPTION_KEY`,
-  `SIEM_ESO_ENCRYPTION_KEY`, and `SIEM_REPORTING_ENCRYPTION_KEY` to unique values from
-  `bin/kibana-encryption-keys`; anyone who knows the key can decrypt Kibana's saved objects.
-  Rotating them after Kibana has run invalidates the existing saved objects, so re-import the
-  dashboard with `python -m src.main import-dashboard`. See `.env.example`.
+  Unauthenticated cluster access means anyone who can reach port 9200 can read *and delete* the
+  shared dataset, so the default binds to the loopback interface. The documented single-machine
+  workflow is unchanged. **Before using this lab on a classroom network, read
+  `docs/DEPLOYMENT_MODES.md`** — there is no safe classroom mode configured yet, and the
+  available options are a real decision, not a port number.
+- Kibana's three `XPACK_*_ENCRYPTIONKEY` settings are **required** and have no fallback value:
+
+  ```yaml
+  XPACK_SECURITY_ENCRYPTIONKEY: ${SIEM_ENCRYPTION_KEY:?SIEM_ENCRYPTION_KEY is required ...}
+  ```
+
+  They used to fall back to fixed strings that were published in this repository, which meant
+  they protected nothing: anyone who could read the file could decrypt Kibana's sessions and
+  encrypted saved objects. `scripts/ensure_lab_env.ps1` — called by both `setup.ps1` and
+  `start_lab.ps1` — now generates three random keys into a git-ignored `.env` on first run, so a
+  fresh clone still starts with no manual step and Compose fails fast with a clear message if a
+  key is missing. To supply your own, use `bin/kibana-encryption-keys`; real values belong in
+  `.env` and nowhere else. Rotating the keys invalidates existing encrypted saved objects, so
+  re-import the dashboard with `python -m src.main import-dashboard`. See `.env.example`.
+- `POST /api/reveal` requires a signed-in student who has already submitted a check for that
+  scenario, and is rate limited per user. It used to be anonymous and unthrottled, which handed
+  the entire answer key to any caller in about half a second. `POST /api/check` remains
+  stateless and unauthenticated.
 - `.env` is git-ignored and only `.env.example` (placeholders) is committed. Certificates,
   keys, and `config/certs/` are ignored.
 - To harden, apply `docker-compose.prod.yml`, which enables X-Pack security and TLS for both
